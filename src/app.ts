@@ -213,12 +213,28 @@ export class App {
     });
 
     // Save
-    document.getElementById('btn-save')!.addEventListener('click', () => {
-      const blob = new Blob([serializeModel(this.model)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'furnace.json';
-      a.click();
+    document.getElementById('btn-save')!.addEventListener('click', async () => {
+      const json = serializeModel(this.model);
+      if ((window as any).__TAURI_INTERNALS__) {
+        // Tauri: нативный диалог сохранения
+        const { save }          = await import('@tauri-apps/plugin-dialog');
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        const path = await save({
+          defaultPath: 'furnace.json',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+        });
+        if (path) await writeTextFile(path, json);
+      } else {
+        // Браузер: скачать файл
+        const blob = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'furnace.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+      }
     });
 
     // Load

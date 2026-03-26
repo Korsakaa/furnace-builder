@@ -363,7 +363,12 @@ export class GridEditor {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `row_${String(ri + 1).padStart(3, '0')}.png`;
-        setTimeout(() => { a.click(); URL.revokeObjectURL(a.href); }, ri * 120);
+        setTimeout(() => {
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+        }, ri * 120);
       });
     });
   }
