@@ -216,14 +216,14 @@ export class App {
     document.getElementById('btn-save')!.addEventListener('click', async () => {
       const json = serializeModel(this.model);
       if ((window as any).__TAURI_INTERNALS__) {
-        // Tauri: нативный диалог сохранения
-        const { save }          = await import('@tauri-apps/plugin-dialog');
-        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        // Tauri: нативный диалог сохранения + Rust-команда записи
+        const { save }   = await import('@tauri-apps/plugin-dialog');
+        const { invoke } = await import('@tauri-apps/api/core');
         const path = await save({
           defaultPath: 'furnace.json',
           filters: [{ name: 'JSON', extensions: ['json'] }],
         });
-        if (path) await writeTextFile(path, json);
+        if (path) await invoke('save_file', { path, content: json });
       } else {
         // Браузер: скачать файл
         const blob = new Blob([json], { type: 'application/json' });

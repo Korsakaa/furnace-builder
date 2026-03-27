@@ -7,9 +7,8 @@
   ],
   "permissions": [
     "core:default",
+    "core:allow-invoke",
     "dialog:allow-save",
-    "fs:allow-write-text-file",
-    "fs:allow-read-text-file",
-    "fs:allow-exists"
+    "dialog:allow-open"
   ]
 }
