@@ -178,6 +178,22 @@
     }
     #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
 
+    #viewport-hint {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(20,16,10,0.72);
+      border: 1px solid #3a2e1e;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #a09070;
+      line-height: 1.7;
+      pointer-events: none;
+      user-select: none;
+    }
+    #viewport-hint span { color: #d4b880; }
+
     #grid-wrap {
       flex: 1;
       overflow: auto;
@@ -260,7 +276,13 @@
 
   <!-- 3D + 2D -->
   <div id="content">
-    <div id="viewport"></div>
+    <div id="viewport">
+      <div id="viewport-hint">
+        <span>ЛКМ</span> — вращение&nbsp;&nbsp;
+        <span>🖱 колёсико</span> — масштаб&nbsp;&nbsp;
+        <span>ПКМ</span> — панорама
+      </div>
+    </div>
     <div id="grid-wrap">
       <canvas id="grid-canvas"></canvas>
     </div>
