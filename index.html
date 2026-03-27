@@ -194,6 +194,51 @@
     }
     #viewport-hint span { color: #d4b880; }
 
+    #viewport-controls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    /* D-pad: 3×3 grid */
+    .vpc-dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 30px);
+      grid-template-rows: repeat(3, 30px);
+      gap: 3px;
+    }
+    /* Zoom: vertical column */
+    .vpc-zoom {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    #viewport-controls button {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      font-size: 15px;
+      background: rgba(20,16,10,0.82);
+      border: 1px solid #3a2e1e;
+      border-radius: 5px;
+      color: #d4c4a8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #viewport-controls button:hover  { background: rgba(62,42,20,0.92); }
+    #viewport-controls button:active { background: rgba(100,60,25,0.98); }
+    #btn-3d-up    { grid-column: 2; grid-row: 1; }
+    #btn-3d-left  { grid-column: 1; grid-row: 2; }
+    #btn-3d-reset { grid-column: 2; grid-row: 2; font-size: 11px; }
+    #btn-3d-right { grid-column: 3; grid-row: 2; }
+    #btn-3d-down  { grid-column: 2; grid-row: 3; }
+
     #grid-wrap {
       flex: 1;
       overflow: auto;
@@ -281,6 +326,19 @@
         <span>ЛКМ</span> — вращение&nbsp;&nbsp;
         <span>🖱 колёсико</span> — масштаб&nbsp;&nbsp;
         <span>ПКМ</span> — панорама
+      </div>
+      <div id="viewport-controls">
+        <div class="vpc-dpad">
+          <button id="btn-3d-up">▲</button>
+          <button id="btn-3d-left">◀</button>
+          <button id="btn-3d-reset" title="Сбросить вид">⌂</button>
+          <button id="btn-3d-right">▶</button>
+          <button id="btn-3d-down">▼</button>
+        </div>
+        <div class="vpc-zoom">
+          <button id="btn-3d-zoomin"  title="Приблизить">+</button>
+          <button id="btn-3d-zoomout" title="Отдалить">−</button>
+        </div>
       </div>
     </div>
     <div id="grid-wrap">

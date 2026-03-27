@@ -44,6 +44,7 @@ export class App {
       this.refreshStatus();
     };
 
+    this.renderer3d.bindControls();
     this.bindUI();
     this.refreshAll();
   }

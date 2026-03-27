@@ -123,6 +123,63 @@ export class Renderer3D {
     loop();
   }
 
+  /** Подключить кнопки управления видом в 3D-окне */
+  bindControls(): void {
+    const ROTATE_STEP = 0.12; // радианы за клик
+    const ZOOM_FACTOR = 0.85; // коэффициент приближения/отдаления
+
+    const rotate = (dTheta: number, dPhi: number) => {
+      const offset = this.camera.position.clone().sub(this.controls.target);
+      const r = offset.length();
+      // spherical coords
+      let theta = Math.atan2(offset.x, offset.z);
+      let phi   = Math.acos(Math.max(-1, Math.min(1, offset.y / r)));
+      theta += dTheta;
+      phi    = Math.max(0.05, Math.min(Math.PI / 2 + 0.1, phi + dPhi));
+      this.camera.position.set(
+        this.controls.target.x + r * Math.sin(phi) * Math.sin(theta),
+        this.controls.target.y + r * Math.cos(phi),
+        this.controls.target.z + r * Math.sin(phi) * Math.cos(theta),
+      );
+      this.camera.lookAt(this.controls.target);
+    };
+
+    const zoom = (factor: number) => {
+      const offset = this.camera.position.clone().sub(this.controls.target);
+      const r = Math.max(this.controls.minDistance,
+                  Math.min(this.controls.maxDistance, offset.length() * factor));
+      offset.normalize().multiplyScalar(r);
+      this.camera.position.copy(this.controls.target).add(offset);
+    };
+
+    const defaultPos = this.camera.position.clone();
+
+    const btn = (id: string, fn: () => void) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      // поддержка удержания кнопки
+      let timer: ReturnType<typeof setInterval> | null = null;
+      el.addEventListener('mousedown', () => { fn(); timer = setInterval(fn, 80); });
+      el.addEventListener('mouseup',   () => { if (timer) { clearInterval(timer); timer = null; } });
+      el.addEventListener('mouseleave',() => { if (timer) { clearInterval(timer); timer = null; } });
+      // touch
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); fn(); timer = setInterval(fn, 80); }, { passive: false });
+      el.addEventListener('touchend',   () => { if (timer) { clearInterval(timer); timer = null; } });
+    };
+
+    btn('btn-3d-up',      () => rotate(0, -ROTATE_STEP));
+    btn('btn-3d-down',    () => rotate(0,  ROTATE_STEP));
+    btn('btn-3d-left',    () => rotate(-ROTATE_STEP, 0));
+    btn('btn-3d-right',   () => rotate( ROTATE_STEP, 0));
+    btn('btn-3d-zoomin',  () => zoom(ZOOM_FACTOR));
+    btn('btn-3d-zoomout', () => zoom(1 / ZOOM_FACTOR));
+
+    document.getElementById('btn-3d-reset')?.addEventListener('click', () => {
+      this.camera.position.copy(defaultPos);
+      this.camera.lookAt(this.controls.target);
+    });
+  }
+
   update(model: BrickModel, selectedRow: number, showMortar = false): void {
     // clear
     for (const child of [...this.group.children]) {
