@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { BrickModel, BrickType, brickCells } from './model.js';
+import { BrickModel, BrickType, brickCells, isDoorBrick, doorTemplateId } from './model.js';
 
 const JOINT  = 0.077;
 const ROW_H  = 0.5;
@@ -220,7 +220,7 @@ export class Renderer3D {
           const bt = model.rows[ri]?.[ci]?.[di];
           if (!bt || bt === BrickType.Empty) continue;
 
-          const [bcw, bcd] = brickCells(bt);
+          const [bcw, bcd] = brickCells(bt, model.doors);
           let bw = bcw * CELL - JOINT;
           let bd = bcd * CELL - JOINT;
           let bh = ROW_H;
@@ -229,7 +229,31 @@ export class Renderer3D {
           const x = ci * CELL + JOINT / 2 + offX;
           const z = di * CELL + JOINT / 2;
 
-          if (bt === BrickType.Grate) {
+          if (isDoorBrick(bt)) {
+            // дверца: тонкие пластины по форме shape, внизу ряда
+            const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
+            if (tmpl) {
+              const barH   = ROW_H * 0.28;
+              const barD   = JOINT * 2;
+              const doorMat = new THREE.MeshStandardMaterial({
+                color: 0x446688, roughness: 0.4, metalness: 0.8,
+              });
+              for (let c = 0; c < tmpl.cols; c++) {
+                for (let d = 0; d < tmpl.depths; d++) {
+                  if (!tmpl.shape[c]?.[d]) continue;
+                  const bx = x + c * CELL + JOINT / 2;
+                  const bz = z + d * CELL + CELL / 2 - barD / 2;
+                  const bar = new THREE.Mesh(
+                    new THREE.BoxGeometry(CELL - JOINT, barH, barD), doorMat,
+                  );
+                  bar.position.set(bx + (CELL - JOINT) / 2, y + barH / 2, bz + barD / 2);
+                  bar.castShadow    = true;
+                  bar.receiveShadow = true;
+                  this.group.add(bar);
+                }
+              }
+            }
+          } else if (bt === BrickType.Grate) {
             // решетка: прутья вдоль X, расположены внизу кирпича
             const barH  = ROW_H * 0.28;           // высота прутьев
             const barD  = CELL * 0.28;             // толщина прута по Z
@@ -275,7 +299,7 @@ export class Renderer3D {
             for (let di2 = 0; di2 < model.depths; di2++) {
               const btB = model.rows[ri + 1]?.[ci2]?.[di2];
               if (!btB || btB === BrickType.Empty || btB === BrickType.Hole) continue;
-              const [bwB, bdB] = brickCells(btB);
+              const [bwB, bdB] = brickCells(btB, model.doors);
               below.push({
                 x0: ci2 * CELL + JOINT / 2 + offX2,
                 x1: ci2 * CELL + JOINT / 2 + offX2 + bwB * CELL - JOINT,
@@ -290,7 +314,7 @@ export class Renderer3D {
             for (let di = 0; di < model.depths; di++) {
               const btA = model.rows[ri]?.[ci]?.[di];
               if (!btA || btA === BrickType.Empty || btA === BrickType.Hole) continue;
-              const [bwA, bdA] = brickCells(btA);
+              const [bwA, bdA] = brickCells(btA, model.doors);
               const ax0 = ci * CELL + JOINT / 2 + offX;
               const ax1 = ax0 + bwA * CELL - JOINT;
               const az0 = di * CELL + JOINT / 2;
@@ -312,12 +336,12 @@ export class Renderer3D {
           for (let di = 0; di < model.depths; di++) {
             const bt = model.rows[ri]?.[ci]?.[di];
             if (!bt || bt === BrickType.Empty || bt === BrickType.Hole) continue;
-            const [bw, bd] = brickCells(bt);
+            const [bw, bd] = brickCells(bt, model.doors);
 
             // X-joint: right neighbour starts exactly where this brick ends
             const rBt = model.rows[ri]?.[ci + bw]?.[di];
             if (rBt && rBt !== BrickType.Empty && rBt !== BrickType.Hole) {
-              const [, bd2] = brickCells(rBt);
+              const [, bd2] = brickCells(rBt, model.doors);
               const mDepth = Math.min(bd, bd2) * CELL - JOINT;
               const mx = (ci + bw) * CELL + offX;
               const mz = di * CELL + JOINT / 2;
@@ -329,7 +353,7 @@ export class Renderer3D {
             // Z-joint: front neighbour starts exactly where this brick ends
             const fBt = model.rows[ri]?.[ci]?.[di + bd];
             if (fBt && fBt !== BrickType.Empty && fBt !== BrickType.Hole) {
-              const [bw2] = brickCells(fBt);
+              const [bw2] = brickCells(fBt, model.doors);
               const mWidth = Math.min(bw, bw2) * CELL - JOINT;
               const mx = ci * CELL + offX + JOINT / 2;
               const mz = (di + bd) * CELL;

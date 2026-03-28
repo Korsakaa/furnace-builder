@@ -1,19 +1,24 @@
-import { BrickModel, BrickType, brickCells, setBrick } from './model.js';
+import { BrickModel, BrickType, DoorTemplate, brickCells, setBrick, isDoorBrick, doorTemplateId } from './model.js';
 
 const SC       = 16;   // pixels per cell (1 brick = 4×2 cells)
 const LABEL_W  = 60;
 const ROW_GAP  = 18;
 
-const ALL_BRICK_TYPES: BrickType[] = [
+const ALL_BRICK_TYPES: string[] = [
   BrickType.FullStretcher, BrickType.FullHeader,
   BrickType.ThreeQuarter,  BrickType.Half,
   BrickType.Hole,          BrickType.VerticalStretcher,
   BrickType.Grate,
 ];
 
+function allTypes(model: BrickModel): string[] {
+  return [...ALL_BRICK_TYPES, ...model.doors.map(d => `door:${d.id}`)];
+}
+
 // ── colours ─────────────────────────────────────────────────────────────────
-function brickFill(bt: BrickType, gray: boolean): string {
+function brickFill(bt: string, gray: boolean): string {
   if (gray) return '#6e6e6e';
+  if (isDoorBrick(bt)) return '#2a4a5a';
   switch (bt) {
     case BrickType.FullStretcher:     return '#d27846';
     case BrickType.FullHeader:        return '#4688d2';
@@ -31,8 +36,8 @@ function brickBorder(gray: boolean): string { return gray ? '#444' : '#321a08'; 
 function findBrickStart(
   model: BrickModel, row: number, col: number, dep: number
 ): [number, number] | null {
-  for (const bt of ALL_BRICK_TYPES) {
-    const [bw, bd] = brickCells(bt);
+  for (const bt of allTypes(model)) {
+    const [bw, bd] = brickCells(bt, model.doors);
     for (let dc = 0; dc < bw; dc++) {
       for (let dd = 0; dd < bd; dd++) {
         const sc = col - dc, sd = dep - dd;
@@ -139,7 +144,7 @@ function drawBricks(
     for (let dep = 0; dep < model.depths; dep++) {
       const bt = model.rows[row]?.[col]?.[dep];
       if (!bt || bt === BrickType.Empty) continue;
-      const [bw, bd] = brickCells(bt);
+      const [bw, bd] = brickCells(bt, model.doors);
       const sx = ox + col * SC + offPx + m;
       const sy = oy + dep * SC + m;
       const pw = bw * SC - 2 * m;
@@ -148,6 +153,24 @@ function drawBricks(
       ctx.fillStyle = brickFill(bt, gray);
       ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.fill();
       ctx.strokeStyle = brickBorder(gray); ctx.lineWidth = 1.5; ctx.stroke();
+
+      // дверца — рисуем форму из shape
+      if (isDoorBrick(bt) && !gray) {
+        const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
+        if (tmpl) {
+          ctx.save();
+          ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.clip();
+          for (let c = 0; c < tmpl.cols; c++) {
+            for (let d = 0; d < tmpl.depths; d++) {
+              const cx = sx + c * SC - m + 1;
+              const cy = sy + d * SC - m + 1;
+              ctx.fillStyle = tmpl.shape[c]?.[d] ? '#7ab4c8' : '#111a20';
+              ctx.fillRect(cx, cy, SC - 2, SC - 2);
+            }
+          }
+          ctx.restore();
+        }
+      }
 
       // решетка — горизонтальные прутья
       if (bt === BrickType.Grate && !gray) {
@@ -219,10 +242,10 @@ export class GridEditor {
   private ctx:     CanvasRenderingContext2D;
   private model:   BrickModel;
   selectedRow  = 0;
-  selectedTool = BrickType.FullStretcher;
+  selectedTool: string = BrickType.FullStretcher;
   showMortar   = false;
   onChange?:     () => void;
-  onToolChange?: (tool: BrickType) => void;
+  onToolChange?: (tool: string) => void;
 
   private paintDown  = false;
   private eraseDown  = false;
@@ -411,7 +434,7 @@ export class GridEditor {
       if (!dir) return;
       e.preventDefault();
 
-      const [bw, bd] = brickCells(this.selectedTool);
+      const [bw, bd] = brickCells(this.selectedTool, this.model.doors);
       let col: number, dep: number;
 
       if (this.lastPlaced) {

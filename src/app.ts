@@ -3,11 +3,13 @@ import {
   createModel, addRow, brickCount,
   resizeModel, fillRowWithBond, clearRow,
   serializeModel, deserializeModel,
+  isDoorBrick, doorTemplateId,
 } from './model.js';
-import { Renderer3D   } from './renderer3d.js';
-import { GridEditor   } from './gridEditor.js';
+import { Renderer3D     } from './renderer3d.js';
+import { GridEditor     } from './gridEditor.js';
+import { DoorEditorModal } from './doorEditor.js';
 
-const TOOL_LABELS: Record<BrickType, string> = {
+const STATIC_TOOL_LABELS: Record<string, string> = {
   [BrickType.Empty]:             'Нет',
   [BrickType.FullStretcher]:     'Ложок',
   [BrickType.FullHeader]:        'Тычок',
@@ -22,12 +24,13 @@ export class App {
   private model:       BrickModel;
   private renderer3d:  Renderer3D;
   private gridEditor:  GridEditor;
+  private doorEditor:  DoorEditorModal;
   private selectedRow  = 0;
-  private selectedTool = BrickType.FullStretcher;
+  private selectedTool: string = BrickType.FullStretcher;
   private selectedBond = BondPattern.Chain;
   private showMortar   = false;
-  private sliceRow     = -1; // -1 = показывать все ряды
-  private sliceCol     = -1; // -1 = показывать все колонки
+  private sliceRow     = -1;
+  private sliceCol     = -1;
 
   constructor() {
     this.model = createModel(60, 30); // 60 cells = 15 bricks wide, 30 cells = 15 brick-depths
@@ -40,11 +43,15 @@ export class App {
     this.gridEditor.selectedRow  = this.selectedRow;
     this.gridEditor.selectedTool = this.selectedTool;
     this.gridEditor.onChange     = () => { this.refresh3d(); this.refreshCounts(); this.refreshStatus(); };
-    this.gridEditor.onToolChange = (tool) => {
-      this.selectedTool = tool;
-      document.querySelectorAll('.btn-tool[data-tool]').forEach(b => b.classList.remove('active'));
-      document.querySelector(`.btn-tool[data-tool="${tool}"]`)?.classList.add('active');
-      this.refreshStatus();
+    this.gridEditor.onToolChange = (tool: string) => {
+      this.selectTool(tool);
+    };
+
+    this.doorEditor = new DoorEditorModal(this.model);
+    this.doorEditor.onDoorCreated = (bt: string) => {
+      this.selectTool(bt);
+      this.refreshDoorButtons();
+      this.refreshAll();
     };
 
     this.renderer3d.bindControls();
@@ -62,19 +69,42 @@ export class App {
     (this as any)._resetSlice?.();
   }
 
-  private refresh3d()     { this.renderer3d.update(this.model, this.selectedRow, this.showMortar, this.sliceRow, this.sliceCol); }
+  private refresh3d() { this.renderer3d.update(this.model, this.selectedRow, this.showMortar, this.sliceRow, this.sliceCol); }
+
+  private selectTool(bt: string) {
+    this.selectedTool = bt;
+    this.gridEditor.selectedTool = bt;
+    document.querySelectorAll('.btn-tool[data-tool]').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.btn-tool[data-tool="${bt}"]`)?.classList.add('active');
+    this.refreshStatus();
+  }
+
+  private refreshDoorButtons() {
+    const panel = document.getElementById('door-buttons')!;
+    panel.innerHTML = this.model.doors.map(d => `
+      <button class="btn-tool${this.selectedTool === `door:${d.id}` ? ' active' : ''}"
+              data-tool="door:${d.id}">${d.name}</button>
+    `).join('');
+    panel.querySelectorAll('.btn-tool[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectTool((btn as HTMLElement).dataset.tool!);
+      });
+    });
+  }
   private refreshGrid()   { this.gridEditor.showMortar = this.showMortar; this.gridEditor.draw(); }
   private refreshCounts() {
-    const LABELS: Partial<Record<BrickType, string>> = {
+    const LABELS: Record<string, string> = {
       [BrickType.FullStretcher]:     'Ложок',
       [BrickType.FullHeader]:        'Тычок',
       [BrickType.ThreeQuarter]:      '3/4',
       [BrickType.Half]:              '1/2',
       [BrickType.Hole]:              'Отверстие',
       [BrickType.VerticalStretcher]: 'На ребро',
+      [BrickType.Grate]:             'Решетка',
     };
+    for (const d of this.model.doors) LABELS[`door:${d.id}`] = d.name;
 
-    const counts: Partial<Record<BrickType, number>> = {};
+    const counts: Record<string, number> = {};
     let total = 0;
     for (const row of this.model.rows)
       for (const col of row)
@@ -85,17 +115,10 @@ export class App {
           }
 
     const el = document.getElementById('brick-counts')!;
-    const order: BrickType[] = [
-      BrickType.FullStretcher, BrickType.FullHeader,
-      BrickType.ThreeQuarter, BrickType.Half,
-      BrickType.Hole, BrickType.VerticalStretcher,
-    ];
-
-    el.innerHTML = order
-      .filter(bt => counts[bt])
+    el.innerHTML = Object.keys(counts)
       .map(bt => `
         <div class="count-item">
-          <span class="ct-label">${LABELS[bt]}</span>
+          <span class="ct-label">${LABELS[bt] ?? bt}</span>
           <span class="ct-val">${counts[bt]}</span>
         </div>`)
       .join('') +
@@ -104,10 +127,15 @@ export class App {
 
   private refreshStatus() {
     const el = document.getElementById('status')!;
+    let toolName = STATIC_TOOL_LABELS[this.selectedTool] ?? '';
+    if (!toolName && isDoorBrick(this.selectedTool)) {
+      const tmpl = this.model.doors.find(d => d.id === doorTemplateId(this.selectedTool));
+      toolName = tmpl?.name ?? 'Дверца';
+    }
     el.textContent =
       `Ряд: ${this.selectedRow + 1}/${this.model.rows.length}  |  ` +
       `Кирпичей: ${brickCount(this.model)}  |  ` +
-      `Инструмент: ${TOOL_LABELS[this.selectedTool]}`;
+      `Инструмент: ${toolName}`;
   }
 
   // ── row list ─────────────────────────────────────────────────────────────
@@ -152,15 +180,16 @@ export class App {
 
   // ── toolbar binding ───────────────────────────────────────────────────────
   private bindUI() {
-    // Tool buttons
+    // Tool buttons (static)
     document.querySelectorAll('.btn-tool[data-tool]').forEach(btn => {
       btn.addEventListener('click', () => {
-        this.selectedTool = (btn as HTMLElement).dataset.tool as BrickType;
-        this.gridEditor.selectedTool = this.selectedTool;
-        document.querySelectorAll('.btn-tool[data-tool]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.refreshStatus();
+        this.selectTool((btn as HTMLElement).dataset.tool!);
       });
+    });
+
+    // Door editor button
+    document.getElementById('btn-door-editor')!.addEventListener('click', () => {
+      this.doorEditor.open();
     });
 
     // Bond buttons
@@ -292,12 +321,15 @@ export class App {
       file.text().then(json => {
         this.model = deserializeModel(json);
         this.gridEditor.setModel(this.model);
+        // re-bind door editor to new model
+        (this.doorEditor as any).model = this.model;
         this.selectedRow = 0;
         this.gridEditor.selectedRow = 0;
         const inp = document.getElementById('inp-cols') as HTMLInputElement;
         const ind = document.getElementById('inp-depths') as HTMLInputElement;
         inp.value = String(Math.round(this.model.cols / 4));
         ind.value = String(Math.round(this.model.depths / 2));
+        this.refreshDoorButtons();
         this.refreshAll();
       });
     });

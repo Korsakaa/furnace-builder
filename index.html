@@ -178,6 +178,56 @@
     }
     #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
 
+    /* ── Door modal ───────────────────────────────────────────────────── */
+    #door-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #door-modal-content {
+      background: #201a12;
+      border: 1px solid #4a3a24;
+      border-radius: 8px;
+      padding: 16px 20px;
+      min-width: 340px;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #door-modal-content h3 { color: #d4b880; font-size: 13px; margin: 0; }
+    #door-modal-content h4 { color: #a09070; font-size: 11px; margin: 4px 0 0; }
+    .door-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #door-editor-canvas {
+      cursor: crosshair;
+      border: 1px solid #3a2e1e;
+      border-radius: 3px;
+      image-rendering: pixelated;
+    }
+    .door-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #c4b494;
+    }
+    .door-list-item:hover { background: #2a2016; }
+    .door-select-btn {
+      font-size: 11px;
+      padding: 2px 8px;
+      background: #3a5020;
+      border-color: #608040;
+      color: #a0d060;
+    }
+    #door-buttons { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+    #btn-door-editor { border-style: dashed; color: #a09070; margin-top: 4px; }
+
     /* общий контейнер справа: вертикальный срез | стрелки+зум | горизонтальный срез */
     #slice-panel {
       position: absolute;
@@ -345,6 +395,8 @@
     <button class="btn-tool" data-tool="Hole">Отверстие</button>
     <button class="btn-tool" data-tool="VerticalStretcher">На ребро</button>
     <button class="btn-tool" data-tool="Grate">Решетка</button>
+    <div id="door-buttons"></div>
+    <button class="btn-tool" id="btn-door-editor">+ Дверца</button>
     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 2px;font-size:11px;color:#a09070;">
       <input type="checkbox" id="chk-mortar" style="accent-color:#c87840"> Швы
     </label>
@@ -393,6 +445,36 @@
 
 <!-- Status bar -->
 <div id="status" id="status">Ряд: 1/3 | Кирпичей: 0 | Инструмент: Ложок</div>
+
+<!-- ── Door editor modal ──────────────────────────────────────────────────── -->
+<div id="door-modal">
+  <div id="door-modal-content">
+    <h3>Редактор дверцы</h3>
+    <div class="door-row">
+      <label style="font-size:11px;color:#a09070;">Название:</label>
+      <input type="text" id="door-inp-name" value="Дверца 1"
+             style="flex:1;padding:3px 6px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
+    </div>
+    <div class="door-row">
+      <label style="font-size:11px;color:#a09070;">Ш (яч):</label>
+      <input type="number" id="door-inp-cols" value="4" min="1" max="16"
+             style="width:48px;padding:3px 6px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
+      <label style="font-size:11px;color:#a09070;">Г (яч):</label>
+      <input type="number" id="door-inp-depths" value="4" min="1" max="12"
+             style="width:48px;padding:3px 6px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
+      <button id="door-btn-resize">Размер</button>
+    </div>
+    <div style="font-size:10px;color:#6a6050;">ЛКМ — поставить прут &nbsp;|&nbsp; ПКМ — стереть</div>
+    <canvas id="door-editor-canvas"></canvas>
+    <div class="door-row">
+      <button id="door-btn-create" style="background:#3a5020;border-color:#608040;color:#a0d060;">Создать</button>
+      <button id="door-btn-clear">Очистить</button>
+      <button id="door-btn-close" style="margin-left:auto;">✕ Закрыть</button>
+    </div>
+    <h4>Созданные дверцы:</h4>
+    <div id="door-list"></div>
+  </div>
+</div>
 
 <script type="module" src="/src/main.ts"></script>
 </body>
