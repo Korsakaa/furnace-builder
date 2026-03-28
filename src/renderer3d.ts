@@ -229,13 +229,33 @@ export class Renderer3D {
           const x = ci * CELL + JOINT / 2 + offX;
           const z = di * CELL + JOINT / 2;
 
-          const mats = bt === BrickType.Hole  ? faceMats(C_HOLE)  :
-                       bt === BrickType.Grate ? faceMats(C_GRATE) : faceMats(palette);
-          const mesh = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mats);
-          mesh.position.set(x + bw / 2, y + bh / 2, z + bd / 2);
-          mesh.castShadow    = true;
-          mesh.receiveShadow = true;
-          this.group.add(mesh);
+          if (bt === BrickType.Grate) {
+            // решетка: прутья вдоль X, расположены внизу кирпича
+            const barH  = ROW_H * 0.28;           // высота прутьев
+            const barD  = CELL * 0.28;             // толщина прута по Z
+            const nBars = 4;                       // количество прутьев
+            const step  = bd / nBars;              // шаг между прутьями
+            const grateMat = new THREE.MeshStandardMaterial({
+              color: 0x555555, roughness: 0.5, metalness: 0.7,
+            });
+            for (let b = 0; b < nBars; b++) {
+              const bz = z + step * b + (step - barD) / 2;
+              const bar = new THREE.Mesh(
+                new THREE.BoxGeometry(bw, barH, barD), grateMat,
+              );
+              bar.position.set(x + bw / 2, y + barH / 2, bz + barD / 2);
+              bar.castShadow    = true;
+              bar.receiveShadow = true;
+              this.group.add(bar);
+            }
+          } else {
+            const mats = bt === BrickType.Hole ? faceMats(C_HOLE) : faceMats(palette);
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mats);
+            mesh.position.set(x + bw / 2, y + bh / 2, z + bd / 2);
+            mesh.castShadow    = true;
+            mesh.receiveShadow = true;
+            this.group.add(mesh);
+          }
         }
       }
 
