@@ -178,26 +178,31 @@
     }
     #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
 
-    #slice-bar {
+    #slice-panel {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 10px;
+      right: 10px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      background: rgba(20,16,10,0.78);
-      border-top: 1px solid #3a2e1e;
-      pointer-events: all;
+      gap: 6px;
     }
-    #slice-bar label { font-size: 11px; color: #a09070; white-space: nowrap; }
-    #slice-bar span  { font-size: 11px; color: #d4b880; min-width: 28px; text-align: right; }
+    #slice-label {
+      font-size: 11px;
+      color: #d4b880;
+      background: rgba(20,16,10,0.78);
+      border: 1px solid #3a2e1e;
+      border-radius: 4px;
+      padding: 2px 5px;
+      white-space: nowrap;
+    }
     #slice-slider {
-      flex: 1;
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 22px;
+      height: 120px;
       accent-color: #c87840;
       cursor: pointer;
-      height: 4px;
     }
 
     #viewport-hint {
@@ -217,9 +222,6 @@
     #viewport-hint span { color: #d4b880; }
 
     #viewport-controls {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
       display: flex;
       gap: 6px;
       align-items: flex-end;
@@ -349,22 +351,21 @@
         <span>🖱 колёсико</span> — масштаб&nbsp;&nbsp;
         <span>ПКМ</span> — панорама
       </div>
-      <div id="slice-bar">
-        <label>Срез:</label>
-        <input type="range" id="slice-slider" min="1" max="1" value="1" step="1" />
+      <div id="slice-panel">
         <span id="slice-label">1 / 1</span>
-      </div>
-      <div id="viewport-controls">
-        <div class="vpc-dpad">
-          <button id="btn-3d-up">▲</button>
-          <button id="btn-3d-left">◀</button>
-          <button id="btn-3d-reset" title="Сбросить вид">⌂</button>
-          <button id="btn-3d-right">▶</button>
-          <button id="btn-3d-down">▼</button>
-        </div>
-        <div class="vpc-zoom">
-          <button id="btn-3d-zoomin"  title="Приблизить">+</button>
-          <button id="btn-3d-zoomout" title="Отдалить">−</button>
+        <input type="range" id="slice-slider" min="1" max="1" value="1" step="1" />
+        <div id="viewport-controls">
+          <div class="vpc-dpad">
+            <button id="btn-3d-up">▲</button>
+            <button id="btn-3d-left">◀</button>
+            <button id="btn-3d-reset" title="Сбросить вид">⌂</button>
+            <button id="btn-3d-right">▶</button>
+            <button id="btn-3d-down">▼</button>
+          </div>
+          <div class="vpc-zoom">
+            <button id="btn-3d-zoomin"  title="Приблизить">+</button>
+            <button id="btn-3d-zoomout" title="Отдалить">−</button>
+          </div>
         </div>
       </div>
     </div>
