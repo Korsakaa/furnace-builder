@@ -178,6 +178,28 @@
     }
     #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
 
+    #slice-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(20,16,10,0.78);
+      border-top: 1px solid #3a2e1e;
+      pointer-events: all;
+    }
+    #slice-bar label { font-size: 11px; color: #a09070; white-space: nowrap; }
+    #slice-bar span  { font-size: 11px; color: #d4b880; min-width: 28px; text-align: right; }
+    #slice-slider {
+      flex: 1;
+      accent-color: #c87840;
+      cursor: pointer;
+      height: 4px;
+    }
+
     #viewport-hint {
       position: absolute;
       bottom: 10px;
@@ -326,6 +348,11 @@
         <span>ЛКМ</span> — вращение&nbsp;&nbsp;
         <span>🖱 колёсико</span> — масштаб&nbsp;&nbsp;
         <span>ПКМ</span> — панорама
+      </div>
+      <div id="slice-bar">
+        <label>Срез:</label>
+        <input type="range" id="slice-slider" min="1" max="1" value="1" step="1" />
+        <span id="slice-label">1 / 1</span>
       </div>
       <div id="viewport-controls">
         <div class="vpc-dpad">

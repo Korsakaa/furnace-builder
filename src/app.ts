@@ -25,6 +25,7 @@ export class App {
   private selectedTool = BrickType.FullStretcher;
   private selectedBond = BondPattern.Chain;
   private showMortar   = false;
+  private sliceRow     = -1; // -1 = показывать все ряды
 
   constructor() {
     this.model = createModel(80, 16); // 80 cells = 20 bricks, 16 cells = 8 brick-widths
@@ -56,9 +57,10 @@ export class App {
     this.refreshRowList();
     this.refreshStatus();
     this.refreshCounts();
+    (this as any)._resetSlice?.();
   }
 
-  private refresh3d()     { this.renderer3d.update(this.model, this.selectedRow, this.showMortar); }
+  private refresh3d()     { this.renderer3d.update(this.model, this.selectedRow, this.showMortar, this.sliceRow); }
   private refreshGrid()   { this.gridEditor.showMortar = this.showMortar; this.gridEditor.draw(); }
   private refreshCounts() {
     const LABELS: Partial<Record<BrickType, string>> = {
@@ -200,12 +202,33 @@ export class App {
       this.selectedRow = this.model.rows.length - 1;
       this.gridEditor.selectedRow = this.selectedRow;
       this.refreshAll();
+      (this as any)._resetSlice?.();
     });
 
     // Export PNG
     document.getElementById('btn-export-png')!.addEventListener('click', () => {
       this.gridEditor.exportAllRows();
     });
+
+    // Slice slider
+    const sliceSlider = document.getElementById('slice-slider') as HTMLInputElement;
+    const sliceLabel  = document.getElementById('slice-label')!;
+    const updateSlice = () => {
+      const total = this.model.rows.length;
+      sliceSlider.max   = String(total);
+      sliceSlider.value = String(total);
+      sliceLabel.textContent = `${total} / ${total}`;
+      this.sliceRow = -1;
+    };
+    sliceSlider.addEventListener('input', () => {
+      const val = parseInt(sliceSlider.value);
+      const total = this.model.rows.length;
+      sliceLabel.textContent = `${val} / ${total}`;
+      this.sliceRow = val >= total ? -1 : val;
+      this.refresh3d();
+    });
+    // expose so refreshRowList can reset slider when rows change
+    (this as any)._resetSlice = updateSlice;
 
     // Mortar toggle
     (document.getElementById('chk-mortar') as HTMLInputElement).addEventListener('change', (e) => {

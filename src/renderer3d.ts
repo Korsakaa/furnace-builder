@@ -180,7 +180,8 @@ export class Renderer3D {
     });
   }
 
-  update(model: BrickModel, selectedRow: number, showMortar = false): void {
+  update(model: BrickModel, selectedRow: number, showMortar = false, maxRow = -1): void {
+    const rowCount = maxRow < 0 ? model.rows.length : Math.min(maxRow, model.rows.length);
     // clear
     for (const child of [...this.group.children]) {
       const m = child as THREE.Mesh;
@@ -195,7 +196,7 @@ export class Renderer3D {
     // centre controls target on model bounds
     const cx = model.cols   * CELL * 0.5;
     const cz = model.depths * CELL * 0.5;
-    const cy = model.rows.length * (ROW_H + JOINT) * 0.5;
+    const cy = rowCount * (ROW_H + JOINT) * 0.5;
     this.controls.target.set(cx, cy, cz);
 
     // widen shadow camera to cover the scene
@@ -206,7 +207,7 @@ export class Renderer3D {
     sc.updateProjectionMatrix();
 
     // build meshes
-    for (let ri = 0; ri < model.rows.length; ri++) {
+    for (let ri = 0; ri < rowCount; ri++) {
       const isSelected = ri === selectedRow;
       const palette    = isSelected ? C_SEL : C_NORMAL;
       const offX       = model.rowOffsets[ri] ? CELL * 2 : 0; // half-brick = 2 cells
@@ -240,7 +241,7 @@ export class Renderer3D {
         const mortarMat = new THREE.MeshStandardMaterial({ color: 0x7a7060, roughness: 1 });
 
         // horizontal joints between this row and the next
-        if (ri < model.rows.length - 1) {
+        if (ri < rowCount - 1) {
           const offX2   = model.rowOffsets[ri + 1] ? CELL * 2 : 0;
           const mortarY = y + ROW_H + JOINT / 2;
 
