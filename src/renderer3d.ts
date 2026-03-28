@@ -230,26 +230,27 @@ export class Renderer3D {
           const z = di * CELL + JOINT / 2;
 
           if (isDoorBrick(bt)) {
-            // дверца: вертикальные пластины по shape[col][rowInDoor], внизу ряда
+            // дверца: тонкие вертикальные пластины по shape, без зазоров
             const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
             if (tmpl) {
-              const barH   = ROW_H * 0.28;
-              const barD   = JOINT * 2;
+              const barD = JOINT * 2.5;  // толщина пластины по Z
               const doorMat = new THREE.MeshStandardMaterial({
                 color: 0x446688, roughness: 0.4, metalness: 0.8,
               });
-              // смещение внутри кирпича по X
+              // смещение по X если right
               const xOff = tmpl.offsetX === 'right'
-                ? (bw - tmpl.cols * CELL) : 0;
-              // rисуем только первую строку shape (для каждого ряда кирпичей одинаково)
+                ? Math.max(0, bw - tmpl.cols * CELL) : 0;
+              // Z-позиция: по центру глубины кирпича
+              const bz = z + bd / 2 - barD / 2;
+
               for (let c = 0; c < tmpl.cols; c++) {
                 if (!tmpl.shape[c]?.some(v => v)) continue;
-                const bx = x + xOff + c * CELL + JOINT / 2;
-                const bz = z + (bd / 2) - barD / 2;
+                // ячейки без зазора — ширина CELL, без JOINT
+                const bx = x + xOff + c * CELL;
                 const bar = new THREE.Mesh(
-                  new THREE.BoxGeometry(CELL - JOINT, barH, barD), doorMat,
+                  new THREE.BoxGeometry(CELL, ROW_H, barD), doorMat,
                 );
-                bar.position.set(bx + (CELL - JOINT) / 2, y + barH / 2, bz + barD / 2);
+                bar.position.set(bx + CELL / 2, y + ROW_H / 2, bz + barD / 2);
                 bar.castShadow    = true;
                 bar.receiveShadow = true;
                 this.group.add(bar);

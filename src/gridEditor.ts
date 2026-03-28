@@ -50,12 +50,13 @@ function findBrickStart(
   return null;
 }
 
-// ── place brick, clearing any overlap ────────────────────────────────────────
-function placeBrick(
-  model: BrickModel, row: number, col: number, dep: number, bt: BrickType
+// ── place brick in one row, clearing overlaps ────────────────────────────────
+function placeBrickInRow(
+  model: BrickModel, row: number, col: number, dep: number, bt: string
 ): void {
+  if (row < 0 || row >= model.rows.length) return;
   if (col < 0 || dep < 0 || col >= model.cols || dep >= model.depths) return;
-  const [bw, bd] = brickCells(bt);
+  const [bw, bd] = brickCells(bt, model.doors);
   const cleared = new Set<string>();
   for (let dc = 0; dc < bw; dc++) {
     for (let dd = 0; dd < bd; dd++) {
@@ -69,6 +70,47 @@ function placeBrick(
     }
   }
   setBrick(model, row, col, dep, bt);
+}
+
+// ── place brick (multi-row for doors) ────────────────────────────────────────
+function placeBrick(
+  model: BrickModel, row: number, col: number, dep: number, bt: string
+): void {
+  placeBrickInRow(model, row, col, dep, bt);
+
+  // doors span multiple rows upward
+  if (isDoorBrick(bt)) {
+    const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
+    if (tmpl) {
+      for (let dr = 1; dr < tmpl.heightRows; dr++) {
+        placeBrickInRow(model, row + dr, col, dep, bt);
+      }
+    }
+  }
+}
+
+// ── erase brick (clears all rows for multi-row doors) ────────────────────────
+function eraseBrick(
+  model: BrickModel, row: number, col: number, dep: number
+): void {
+  const s = findBrickStart(model, row, col, dep);
+  if (!s) return;
+  const bt = model.rows[row]?.[s[0]]?.[s[1]];
+  if (!bt || bt === BrickType.Empty) return;
+
+  setBrick(model, row, s[0], s[1], BrickType.Empty);
+
+  // erase all rows of multi-row door
+  if (isDoorBrick(bt)) {
+    const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
+    if (tmpl) {
+      for (let dr = 1; dr < tmpl.heightRows; dr++) {
+        const r = row + dr;
+        if (r < model.rows.length && model.rows[r]?.[s[0]]?.[s[1]] === bt)
+          setBrick(model, r, s[0], s[1], BrickType.Empty);
+      }
+    }
+  }
 }
 
 // ── axis coordinate labels ───────────────────────────────────────────────────
@@ -335,8 +377,7 @@ export class GridEditor {
       const [col, dep] = result;
 
       if (erase) {
-        const s = findBrickStart(this.model, this.selectedRow, col, dep);
-        if (s) setBrick(this.model, this.selectedRow, s[0], s[1], BrickType.Empty);
+        eraseBrick(this.model, this.selectedRow, col, dep);
       } else {
         placeBrick(this.model, this.selectedRow, col, dep, this.selectedTool);
         this.lastPlaced = { col, dep };
