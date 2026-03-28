@@ -230,30 +230,33 @@ export class Renderer3D {
           const z = di * CELL + JOINT / 2;
 
           if (isDoorBrick(bt)) {
-            // дверца: тонкие вертикальные пластины по shape, без зазоров
-            const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
-            if (tmpl) {
-              const barD = JOINT * 2.5;  // толщина пластины по Z
-              const doorMat = new THREE.MeshStandardMaterial({
-                color: 0x446688, roughness: 0.4, metalness: 0.8,
-              });
-              // смещение по X если right
-              const xOff = tmpl.offsetX === 'right'
-                ? Math.max(0, bw - tmpl.cols * CELL) : 0;
-              // Z-позиция: по центру глубины кирпича
-              const bz = z + bd / 2 - barD / 2;
+            // рисуем только от нижнего ряда двери (чтобы не дублировать)
+            const prevSame = ri > 0 && model.rows[ri - 1]?.[ci]?.[di] === bt;
+            if (prevSame) { /* уже нарисовано снизу */ }
+            else {
+              const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
+              if (tmpl) {
+                // полная высота: heightRows рядов без зазоров
+                const totalH = tmpl.heightRows * ROW_H + (tmpl.heightRows - 1) * JOINT;
+                const barD   = JOINT * 2.5;
+                const doorMat = new THREE.MeshStandardMaterial({
+                  color: 0x446688, roughness: 0.4, metalness: 0.8,
+                });
+                const xOff = tmpl.offsetX === 'right'
+                  ? Math.max(0, bw - tmpl.cols * CELL) : 0;
+                const bz = z + bd / 2 - barD / 2;
 
-              for (let c = 0; c < tmpl.cols; c++) {
-                if (!tmpl.shape[c]?.some(v => v)) continue;
-                // ячейки без зазора — ширина CELL, без JOINT
-                const bx = x + xOff + c * CELL;
-                const bar = new THREE.Mesh(
-                  new THREE.BoxGeometry(CELL, ROW_H, barD), doorMat,
-                );
-                bar.position.set(bx + CELL / 2, y + ROW_H / 2, bz + barD / 2);
-                bar.castShadow    = true;
-                bar.receiveShadow = true;
-                this.group.add(bar);
+                for (let c = 0; c < tmpl.cols; c++) {
+                  if (!tmpl.shape[c]?.some(v => v)) continue;
+                  const bx = x + xOff + c * CELL;
+                  const bar = new THREE.Mesh(
+                    new THREE.BoxGeometry(CELL, totalH, barD), doorMat,
+                  );
+                  bar.position.set(bx + CELL / 2, y + totalH / 2, bz + barD / 2);
+                  bar.castShadow    = true;
+                  bar.receiveShadow = true;
+                  this.group.add(bar);
+                }
               }
             }
           } else if (bt === BrickType.Grate) {
