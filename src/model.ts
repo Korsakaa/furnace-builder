@@ -6,6 +6,7 @@ export enum BrickType {
   Half              = 'Half',
   Hole              = 'Hole',
   VerticalStretcher = 'VerticalStretcher',
+  Grate             = 'Grate',
 }
 
 export enum BondPattern {
@@ -78,6 +79,7 @@ export function brickCells(bt: BrickType): [number, number] {
     case BrickType.Half:              return [2, 2];
     case BrickType.Hole:              return [2, 2];
     case BrickType.VerticalStretcher: return [4, 2];
+    case BrickType.Grate:             return [4, 2];
     default: return [1, 1];
   }
 }

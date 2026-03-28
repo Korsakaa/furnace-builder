@@ -15,6 +15,7 @@ const TOOL_LABELS: Record<BrickType, string> = {
   [BrickType.Half]:              '1/2',
   [BrickType.Hole]:              'Отверстие',
   [BrickType.VerticalStretcher]: 'На ребро',
+  [BrickType.Grate]:             'Решетка',
 };
 
 export class App {

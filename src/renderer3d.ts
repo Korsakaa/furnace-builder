@@ -19,7 +19,8 @@ const C_SEL = {
   side:  0x1D9E75,
   bot:   0x0E7055,
 };
-const C_HOLE = { top: 0x111111, front: 0x151515, side: 0x0d0d0d, bot: 0x080808 };
+const C_HOLE  = { top: 0x111111, front: 0x151515, side: 0x0d0d0d, bot: 0x080808 };
+const C_GRATE = { top: 0x555555, front: 0x666666, side: 0x444444, bot: 0x333333 };
 
 function faceMats(c: typeof C_NORMAL): THREE.MeshStandardMaterial[] {
   return [
@@ -228,7 +229,8 @@ export class Renderer3D {
           const x = ci * CELL + JOINT / 2 + offX;
           const z = di * CELL + JOINT / 2;
 
-          const mats = bt === BrickType.Hole ? faceMats(C_HOLE) : faceMats(palette);
+          const mats = bt === BrickType.Hole  ? faceMats(C_HOLE)  :
+                       bt === BrickType.Grate ? faceMats(C_GRATE) : faceMats(palette);
           const mesh = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mats);
           mesh.position.set(x + bw / 2, y + bh / 2, z + bd / 2);
           mesh.castShadow    = true;

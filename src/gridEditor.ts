@@ -8,6 +8,7 @@ const ALL_BRICK_TYPES: BrickType[] = [
   BrickType.FullStretcher, BrickType.FullHeader,
   BrickType.ThreeQuarter,  BrickType.Half,
   BrickType.Hole,          BrickType.VerticalStretcher,
+  BrickType.Grate,
 ];
 
 // ── colours ─────────────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@ function brickFill(bt: BrickType, gray: boolean): string {
     case BrickType.Half:              return '#a85a32';
     case BrickType.Hole:              return '#19120c';
     case BrickType.VerticalStretcher: return '#5aab58';
+    case BrickType.Grate:             return '#3a3a3a';
     default: return 'transparent';
   }
 }
@@ -146,6 +148,29 @@ function drawBricks(
       ctx.fillStyle = brickFill(bt, gray);
       ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.fill();
       ctx.strokeStyle = brickBorder(gray); ctx.lineWidth = 1.5; ctx.stroke();
+
+      // решетка — горизонтальные прутья
+      if (bt === BrickType.Grate && !gray) {
+        const bars = 4;
+        const gap  = ph / (bars + 1);
+        ctx.save();
+        ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.clip();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth   = 2;
+        for (let i = 1; i <= bars; i++) {
+          const barY = sy + gap * i;
+          ctx.beginPath(); ctx.moveTo(sx + 2, barY); ctx.lineTo(sx + pw - 2, barY); ctx.stroke();
+        }
+        // вертикальные прутья
+        const vbars = 7;
+        const vgap  = pw / (vbars + 1);
+        ctx.lineWidth = 1.5;
+        for (let i = 1; i <= vbars; i++) {
+          const barX = sx + vgap * i;
+          ctx.beginPath(); ctx.moveTo(barX, sy + 2); ctx.lineTo(barX, sy + ph - 2); ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
   }
 }
