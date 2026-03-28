@@ -29,7 +29,7 @@ export class App {
   private sliceCol     = -1; // -1 = показывать все колонки
 
   constructor() {
-    this.model = createModel(80, 16); // 80 cells = 20 bricks, 16 cells = 8 brick-widths
+    this.model = createModel(60, 30); // 60 cells = 15 bricks wide, 30 cells = 15 brick-depths
 
     this.renderer3d = new Renderer3D(document.getElementById('viewport')!);
     this.gridEditor = new GridEditor(

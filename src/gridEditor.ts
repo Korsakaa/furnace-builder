@@ -227,7 +227,6 @@ export class GridEditor {
 
     const HINTS_H = 36;
     let totalH = 8;
-    if (hasPrev) totalH += 14 + gh + ROW_GAP;
     totalH += 14 + gh + 8 + HINTS_H;
     const totalW = LABEL_W + gw + 12;
 
@@ -245,17 +244,6 @@ export class GridEditor {
 
     const baseX = LABEL_W;
     let curY = 8;
-
-    // previous row — shown in normal colours
-    if (hasPrev) {
-      const prev = this.selectedRow - 1;
-      ctx.fillStyle = '#6e6050'; ctx.font = '10px monospace';
-      const offMark = model.rowOffsets[prev] ? ' ½→' : '';
-      ctx.fillText(`Ряд ${prev + 1}↓${offMark}`, 4, curY + 11);
-      curY += 14;
-      drawRow(ctx, model, prev, baseX, curY, false, undefined, this.showMortar);
-      curY += gh + ROW_GAP;
-    }
 
     // current row label
     ctx.fillStyle = '#dcb070'; ctx.font = 'bold 11px monospace';
