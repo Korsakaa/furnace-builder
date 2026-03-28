@@ -180,8 +180,9 @@ export class Renderer3D {
     });
   }
 
-  update(model: BrickModel, selectedRow: number, showMortar = false, maxRow = -1): void {
+  update(model: BrickModel, selectedRow: number, showMortar = false, maxRow = -1, maxCol = -1): void {
     const rowCount = maxRow < 0 ? model.rows.length : Math.min(maxRow, model.rows.length);
+    const colLimit = maxCol < 0 ? model.cols : Math.min(maxCol, model.cols);
     // clear
     for (const child of [...this.group.children]) {
       const m = child as THREE.Mesh;
@@ -213,7 +214,7 @@ export class Renderer3D {
       const offX       = model.rowOffsets[ri] ? CELL * 2 : 0; // half-brick = 2 cells
       const y          = ri * (ROW_H + JOINT);
 
-      for (let ci = 0; ci < model.cols; ci++) {
+      for (let ci = 0; ci < colLimit; ci++) {
         for (let di = 0; di < model.depths; di++) {
           const bt = model.rows[ri]?.[ci]?.[di];
           if (!bt || bt === BrickType.Empty) continue;

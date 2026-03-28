@@ -178,25 +178,33 @@
     }
     #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
 
+    /* общий контейнер справа: вертикальный срез | стрелки+зум | горизонтальный срез */
     #slice-panel {
       position: absolute;
       bottom: 10px;
       right: 10px;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex-direction: row;
+      align-items: flex-end;
       gap: 6px;
     }
-    #slice-label {
-      font-size: 11px;
+    /* колонка одного ползунка */
+    .slice-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .slice-lbl {
+      font-size: 10px;
       color: #d4b880;
       background: rgba(20,16,10,0.78);
       border: 1px solid #3a2e1e;
       border-radius: 4px;
-      padding: 2px 5px;
+      padding: 2px 4px;
       white-space: nowrap;
     }
-    #slice-slider {
+    .slice-range {
       writing-mode: vertical-lr;
       direction: rtl;
       width: 22px;
@@ -352,8 +360,11 @@
         <span>ПКМ</span> — панорама
       </div>
       <div id="slice-panel">
-        <span id="slice-label">1 / 1</span>
-        <input type="range" id="slice-slider" min="1" max="1" value="1" step="1" />
+        <!-- вертикальный срез (колонки, ось X) -->
+        <div class="slice-col">
+          <span class="slice-lbl" id="sliceX-label">X</span>
+          <input class="slice-range" type="range" id="sliceX-slider" min="1" max="1" value="1" step="1" />
+        </div>
         <div id="viewport-controls">
           <div class="vpc-dpad">
             <button id="btn-3d-up">▲</button>
@@ -366,6 +377,11 @@
             <button id="btn-3d-zoomin"  title="Приблизить">+</button>
             <button id="btn-3d-zoomout" title="Отдалить">−</button>
           </div>
+        </div>
+        <!-- горизонтальный срез (ряды, ось Y) -->
+        <div class="slice-col">
+          <span class="slice-lbl" id="slice-label">Y</span>
+          <input class="slice-range" type="range" id="slice-slider" min="1" max="1" value="1" step="1" />
         </div>
       </div>
     </div>

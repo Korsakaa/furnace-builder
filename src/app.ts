@@ -26,6 +26,7 @@ export class App {
   private selectedBond = BondPattern.Chain;
   private showMortar   = false;
   private sliceRow     = -1; // -1 = показывать все ряды
+  private sliceCol     = -1; // -1 = показывать все колонки
 
   constructor() {
     this.model = createModel(80, 16); // 80 cells = 20 bricks, 16 cells = 8 brick-widths
@@ -60,7 +61,7 @@ export class App {
     (this as any)._resetSlice?.();
   }
 
-  private refresh3d()     { this.renderer3d.update(this.model, this.selectedRow, this.showMortar, this.sliceRow); }
+  private refresh3d()     { this.renderer3d.update(this.model, this.selectedRow, this.showMortar, this.sliceRow, this.sliceCol); }
   private refreshGrid()   { this.gridEditor.showMortar = this.showMortar; this.gridEditor.draw(); }
   private refreshCounts() {
     const LABELS: Partial<Record<BrickType, string>> = {
@@ -210,25 +211,44 @@ export class App {
       this.gridEditor.exportAllRows();
     });
 
-    // Slice slider
+    // Slice Y slider (rows)
     const sliceSlider = document.getElementById('slice-slider') as HTMLInputElement;
     const sliceLabel  = document.getElementById('slice-label')!;
     const updateSlice = () => {
       const total = this.model.rows.length;
       sliceSlider.max   = String(total);
       sliceSlider.value = String(total);
-      sliceLabel.textContent = `${total} / ${total}`;
+      sliceLabel.textContent = `Y ${total}/${total}`;
       this.sliceRow = -1;
     };
     sliceSlider.addEventListener('input', () => {
-      const val = parseInt(sliceSlider.value);
+      const val   = parseInt(sliceSlider.value);
       const total = this.model.rows.length;
-      sliceLabel.textContent = `${val} / ${total}`;
+      sliceLabel.textContent = `Y ${val}/${total}`;
       this.sliceRow = val >= total ? -1 : val;
       this.refresh3d();
     });
-    // expose so refreshRowList can reset slider when rows change
-    (this as any)._resetSlice = updateSlice;
+
+    // Slice X slider (columns)
+    const sliceXSlider = document.getElementById('sliceX-slider') as HTMLInputElement;
+    const sliceXLabel  = document.getElementById('sliceX-label')!;
+    const updateSliceX = () => {
+      const total = this.model.cols;
+      sliceXSlider.max   = String(total);
+      sliceXSlider.value = String(total);
+      sliceXLabel.textContent = `X ${total}/${total}`;
+      this.sliceCol = -1;
+    };
+    sliceXSlider.addEventListener('input', () => {
+      const val   = parseInt(sliceXSlider.value);
+      const total = this.model.cols;
+      sliceXLabel.textContent = `X ${val}/${total}`;
+      this.sliceCol = val >= total ? -1 : val;
+      this.refresh3d();
+    });
+
+    // expose resets
+    (this as any)._resetSlice = () => { updateSlice(); updateSliceX(); };
 
     // Mortar toggle
     (document.getElementById('chk-mortar') as HTMLInputElement).addEventListener('change', (e) => {
