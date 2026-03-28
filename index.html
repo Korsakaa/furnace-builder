@@ -450,27 +450,49 @@
 <div id="door-modal">
   <div id="door-modal-content">
     <h3>Редактор дверцы</h3>
+
     <div class="door-row">
       <label style="font-size:11px;color:#a09070;">Название:</label>
       <input type="text" id="door-inp-name" value="Дверца 1"
              style="flex:1;padding:3px 6px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
     </div>
+
+    <div class="door-row" style="gap:12px;">
+      <div>
+        <div style="font-size:10px;color:#a09070;margin-bottom:3px;">Тип кирпича:</div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn-tool door-base-btn active" data-base="Ложок">Ложок</button>
+          <button class="btn-tool door-base-btn" data-base="Тычок">Тычок</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:#a09070;margin-bottom:3px;">Смещение:</div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn-tool door-offset-btn active" data-offset="left">← Лево</button>
+          <button class="btn-tool door-offset-btn" data-offset="right">Право →</button>
+        </div>
+      </div>
+    </div>
+
     <div class="door-row">
       <label style="font-size:11px;color:#a09070;">Ш (яч):</label>
       <input type="number" id="door-inp-cols" value="4" min="1" max="16"
-             style="width:48px;padding:3px 6px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
-      <label style="font-size:11px;color:#a09070;">Г (яч):</label>
-      <input type="number" id="door-inp-depths" value="4" min="1" max="12"
-             style="width:48px;padding:3px 6px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
-      <button id="door-btn-resize">Размер</button>
+             style="width:44px;padding:3px 5px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
+      <label style="font-size:11px;color:#a09070;">Рядов:</label>
+      <input type="number" id="door-inp-rows" value="3" min="1" max="12"
+             style="width:44px;padding:3px 5px;background:#1e1810;border:1px solid #4a3a24;border-radius:4px;color:#d4c4a8;font-size:12px;" />
+      <button id="door-btn-resize">Применить</button>
     </div>
-    <div style="font-size:10px;color:#6a6050;">ЛКМ — поставить прут &nbsp;|&nbsp; ПКМ — стереть</div>
+
+    <div style="font-size:10px;color:#6a6050;">ЛКМ — поставить прут &nbsp;|&nbsp; ПКМ — стереть &nbsp;|&nbsp; Жёлтая полоса — смещение</div>
     <canvas id="door-editor-canvas"></canvas>
+
     <div class="door-row">
       <button id="door-btn-create" style="background:#3a5020;border-color:#608040;color:#a0d060;">Создать</button>
       <button id="door-btn-clear">Очистить</button>
       <button id="door-btn-close" style="margin-left:auto;">✕ Закрыть</button>
     </div>
+
     <h4>Созданные дверцы:</h4>
     <div id="door-list"></div>
   </div>

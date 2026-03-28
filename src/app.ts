@@ -49,7 +49,7 @@ export class App {
 
     this.doorEditor = new DoorEditorModal(this.model);
     this.doorEditor.onDoorCreated = (bt: string) => {
-      this.selectTool(bt);
+      if (bt) this.selectTool(bt);
       this.refreshDoorButtons();
       this.refreshAll();
     };

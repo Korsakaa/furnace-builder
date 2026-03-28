@@ -154,20 +154,23 @@ function drawBricks(
       ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.fill();
       ctx.strokeStyle = brickBorder(gray); ctx.lineWidth = 1.5; ctx.stroke();
 
-      // дверца — рисуем форму из shape
+      // дверца — рисуем форму из shape (фронтальный вид, row=0 сверху)
       if (isDoorBrick(bt) && !gray) {
         const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
         if (tmpl) {
           ctx.save();
           ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.clip();
+          // В top-down редакторе показываем срез shape по строке 0 (низ двери)
           for (let c = 0; c < tmpl.cols; c++) {
-            for (let d = 0; d < tmpl.depths; d++) {
-              const cx = sx + c * SC - m + 1;
-              const cy = sy + d * SC - m + 1;
-              ctx.fillStyle = tmpl.shape[c]?.[d] ? '#7ab4c8' : '#111a20';
-              ctx.fillRect(cx, cy, SC - 2, SC - 2);
-            }
+            const hasFrame = tmpl.shape[c]?.some(v => v) ?? false;
+            const cx = sx + c * SC - m + 1;
+            ctx.fillStyle = hasFrame ? '#6aaabf' : '#111a20';
+            ctx.fillRect(cx, sy + m - 1, SC - 2, ph);
           }
+          // индикатор смещения
+          ctx.fillStyle = 'rgba(255,200,80,0.5)';
+          const indicatorX = tmpl.offsetX === 'left' ? sx : sx + pw - 4;
+          ctx.fillRect(indicatorX, sy, 4, ph);
           ctx.restore();
         }
       }

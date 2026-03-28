@@ -18,9 +18,12 @@ export enum BondPattern {
 export interface DoorTemplate {
   id: string;
   name: string;
-  cols: number;          // width in grid cells
-  depths: number;        // depth in grid cells
-  shape: boolean[][];    // [col][dep] — true = frame material
+  cols: number;        // width in grid cells (X, horizontal)
+  heightRows: number;  // height in brick rows (Y, vertical — how many rows the door spans)
+  depth: number;       // Z depth in cells: 2 for Ложок, 4 for Тычок
+  offsetX: 'left' | 'right';  // alignment within brick slot
+  brickBase: 'Ложок' | 'Тычок';
+  shape: boolean[][];  // [col][rowInDoor] — front view, true = frame material
 }
 
 export function doorBrickType(id: string): string  { return `door:${id}`; }
@@ -75,7 +78,7 @@ export function brickCount(m: BrickModel): number {
 export function brickCells(bt: string, doors?: DoorTemplate[]): [number, number] {
   if (isDoorBrick(bt) && doors) {
     const tmpl = doors.find(d => d.id === doorTemplateId(bt));
-    if (tmpl) return [tmpl.cols, tmpl.depths];
+    if (tmpl) return [tmpl.cols, tmpl.depth];
   }
   switch (bt) {
     case BrickType.FullStretcher:     return [4, 2];

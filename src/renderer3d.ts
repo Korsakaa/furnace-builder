@@ -230,7 +230,7 @@ export class Renderer3D {
           const z = di * CELL + JOINT / 2;
 
           if (isDoorBrick(bt)) {
-            // дверца: тонкие пластины по форме shape, внизу ряда
+            // дверца: вертикальные пластины по shape[col][rowInDoor], внизу ряда
             const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
             if (tmpl) {
               const barH   = ROW_H * 0.28;
@@ -238,19 +238,21 @@ export class Renderer3D {
               const doorMat = new THREE.MeshStandardMaterial({
                 color: 0x446688, roughness: 0.4, metalness: 0.8,
               });
+              // смещение внутри кирпича по X
+              const xOff = tmpl.offsetX === 'right'
+                ? (bw - tmpl.cols * CELL) : 0;
+              // rисуем только первую строку shape (для каждого ряда кирпичей одинаково)
               for (let c = 0; c < tmpl.cols; c++) {
-                for (let d = 0; d < tmpl.depths; d++) {
-                  if (!tmpl.shape[c]?.[d]) continue;
-                  const bx = x + c * CELL + JOINT / 2;
-                  const bz = z + d * CELL + CELL / 2 - barD / 2;
-                  const bar = new THREE.Mesh(
-                    new THREE.BoxGeometry(CELL - JOINT, barH, barD), doorMat,
-                  );
-                  bar.position.set(bx + (CELL - JOINT) / 2, y + barH / 2, bz + barD / 2);
-                  bar.castShadow    = true;
-                  bar.receiveShadow = true;
-                  this.group.add(bar);
-                }
+                if (!tmpl.shape[c]?.some(v => v)) continue;
+                const bx = x + xOff + c * CELL + JOINT / 2;
+                const bz = z + (bd / 2) - barD / 2;
+                const bar = new THREE.Mesh(
+                  new THREE.BoxGeometry(CELL - JOINT, barH, barD), doorMat,
+                );
+                bar.position.set(bx + (CELL - JOINT) / 2, y + barH / 2, bz + barD / 2);
+                bar.castShadow    = true;
+                bar.receiveShadow = true;
+                this.group.add(bar);
               }
             }
           } else if (bt === BrickType.Grate) {
