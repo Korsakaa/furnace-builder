@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { BrickModel, BrickType, brickCells, isDoorBrick, doorTemplateId } from './model.js';
+import { BrickModel, BrickType, brickCells, isDoorBrick, doorTemplateId, isChamferBrick, chamferCorner, chamferLegs, isWedgeBrick, wedgeTaper, isBoxBrick, boxTemplateId, isHalfDiagBrick, halfDiagVariant } from './model.js';
 
 const JOINT  = 0.077;
 const ROW_H  = 0.5;
@@ -31,6 +31,134 @@ function faceMats(c: typeof C_NORMAL): THREE.MeshStandardMaterial[] {
     new THREE.MeshStandardMaterial({ color: c.front, roughness: 0.85 }), // +Z
     new THREE.MeshStandardMaterial({ color: c.side,  roughness: 0.9 }),  // -Z
   ];
+}
+
+/** Создаёт геометрию клинового кирпича (треугольная призма) */
+function wedgeGeo(bw: number, bd: number, bh: number, taper: 'L'|'R'|'F'|'B'|'ML'|'MR'|'MF'|'MB'): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const p = (x: number, y: number, z: number) => pos.push(x, y, z);
+  // Нижняя грань (одинаковая для всех)
+  p(0,0,0); p(bw,0,0); p(bw,0,bd);
+  p(0,0,0); p(bw,0,bd); p(0,0,bd);
+  if (taper === 'L') {
+    // высокий при x=0, нож-кромка при x=bw
+    p(0,0,0); p(0,bh,bd); p(0,bh,0);  p(0,0,0); p(0,0,bd); p(0,bh,bd); // левая грань
+    p(0,0,0); p(0,bh,0); p(bw,0,0);                                      // передний треугольник
+    p(0,0,bd); p(bw,0,bd); p(0,bh,bd);                                   // задний треугольник
+    p(0,bh,0); p(0,bh,bd); p(bw,0,bd);  p(0,bh,0); p(bw,0,bd); p(bw,0,0); // наклонная крышка
+  } else if (taper === 'R') {
+    // высокий при x=bw, нож-кромка при x=0
+    p(bw,0,0); p(bw,bh,0); p(bw,bh,bd);  p(bw,0,0); p(bw,bh,bd); p(bw,0,bd); // правая грань
+    p(0,0,0); p(bw,bh,0); p(bw,0,0);                                            // передний треугольник
+    p(0,0,bd); p(bw,0,bd); p(bw,bh,bd);                                         // задний треугольник
+    p(0,0,0); p(0,0,bd); p(bw,bh,bd);  p(0,0,0); p(bw,bh,bd); p(bw,bh,0);    // наклонная крышка
+  } else if (taper === 'F') {
+    // высокий при z=0, нож-кромка при z=bd (Тычок)
+    p(0,0,0); p(0,bh,0); p(bw,bh,0);  p(0,0,0); p(bw,bh,0); p(bw,0,0); // передняя грань
+    p(0,0,0); p(0,0,bd); p(0,bh,0);                                       // левый треугольник
+    p(bw,0,0); p(bw,bh,0); p(bw,0,bd);                                    // правый треугольник
+    p(0,bh,0); p(0,0,bd); p(bw,0,bd);  p(0,bh,0); p(bw,0,bd); p(bw,bh,0); // наклонная крышка
+  } else if (taper === 'B') {
+    // высокий при z=bd, нож-кромка при z=0 (Тычок)
+    p(0,0,bd); p(bw,0,bd); p(bw,bh,bd);  p(0,0,bd); p(bw,bh,bd); p(0,bh,bd); // задняя грань
+    p(0,0,0); p(0,0,bd); p(0,bh,bd);                                            // левый треугольник
+    p(bw,0,0); p(bw,bh,bd); p(bw,0,bd);                                         // правый треугольник
+    p(0,bh,bd); p(bw,bh,bd); p(bw,0,0);  p(0,bh,bd); p(bw,0,0); p(0,0,0);   // наклонная крышка
+  } else if (taper === 'MR') {
+    // Ложок: полный на левой половине (x=0..mx), нож-кромка при x=bw
+    const mx = bw / 2;
+    // Левая грань x=0 (норм. -X)
+    p(0,0,0); p(0,bh,bd); p(0,bh,0);  p(0,0,0); p(0,0,bd); p(0,bh,bd);
+    // Передняя грань z=0 (норм. -Z): левый прямоугольник + правый треугольник
+    p(0,0,0); p(0,bh,0); p(mx,bh,0);  p(0,0,0); p(mx,bh,0); p(mx,0,0);
+    p(mx,0,0); p(mx,bh,0); p(bw,0,0);
+    // Задняя грань z=bd (норм. +Z): левый прямоугольник + правый треугольник
+    p(0,0,bd); p(mx,0,bd); p(mx,bh,bd);  p(0,0,bd); p(mx,bh,bd); p(0,bh,bd);
+    p(mx,0,bd); p(bw,0,bd); p(mx,bh,bd);
+    // Плоская крышка y=bh (x=0..mx, норм. +Y)
+    p(0,bh,0); p(0,bh,bd); p(mx,bh,bd);  p(0,bh,0); p(mx,bh,bd); p(mx,bh,0);
+    // Наклонная крышка (x=mx..bw, норм. +bh,+(bw-mx),0)
+    p(mx,bh,0); p(mx,bh,bd); p(bw,0,bd);  p(mx,bh,0); p(bw,0,bd); p(bw,0,0);
+  } else if (taper === 'ML') {
+    // Ложок: полный на правой половине (x=mx..bw), нож-кромка при x=0
+    const mx = bw / 2;
+    // Правая грань x=bw (норм. +X)
+    p(bw,0,0); p(bw,bh,0); p(bw,bh,bd);  p(bw,0,0); p(bw,bh,bd); p(bw,0,bd);
+    // Передняя грань z=0 (норм. -Z): левый треугольник + правый прямоугольник
+    p(0,0,0); p(mx,bh,0); p(mx,0,0);
+    p(mx,0,0); p(mx,bh,0); p(bw,bh,0);  p(mx,0,0); p(bw,bh,0); p(bw,0,0);
+    // Задняя грань z=bd (норм. +Z): левый треугольник + правый прямоугольник
+    p(0,0,bd); p(mx,0,bd); p(mx,bh,bd);
+    p(mx,0,bd); p(bw,0,bd); p(bw,bh,bd);  p(mx,0,bd); p(bw,bh,bd); p(mx,bh,bd);
+    // Плоская крышка y=bh (x=mx..bw, норм. +Y)
+    p(mx,bh,0); p(mx,bh,bd); p(bw,bh,bd);  p(mx,bh,0); p(bw,bh,bd); p(bw,bh,0);
+    // Наклонная крышка (x=0..mx, норм. -bh,+mx,0)
+    p(0,0,0); p(0,0,bd); p(mx,bh,bd);  p(0,0,0); p(mx,bh,bd); p(mx,bh,0);
+  } else if (taper === 'MF') {
+    // Тычок: полный на задней половине (z=mz..bd), нож-кромка при z=0
+    const mz = bd / 2;
+    // Задняя грань z=bd (норм. +Z, полная высота)
+    p(0,0,bd); p(bw,0,bd); p(bw,bh,bd);  p(0,0,bd); p(bw,bh,bd); p(0,bh,bd);
+    // Левая грань x=0 (норм. -X): задний прямоугольник + передний треугольник
+    p(0,0,mz); p(0,0,bd); p(0,bh,bd);  p(0,0,mz); p(0,bh,bd); p(0,bh,mz);
+    p(0,0,0); p(0,0,mz); p(0,bh,mz);
+    // Правая грань x=bw (норм. +X): задний прямоугольник + передний треугольник
+    p(bw,0,mz); p(bw,bh,mz); p(bw,bh,bd);  p(bw,0,mz); p(bw,bh,bd); p(bw,0,bd);
+    p(bw,0,0); p(bw,bh,mz); p(bw,0,mz);
+    // Плоская крышка y=bh (z=mz..bd, норм. +Y)
+    p(0,bh,mz); p(0,bh,bd); p(bw,bh,bd);  p(0,bh,mz); p(bw,bh,bd); p(bw,bh,mz);
+    // Наклонная крышка (z=0..mz, норм. 0,+mz,-bh)
+    p(0,0,0); p(0,bh,mz); p(bw,bh,mz);  p(0,0,0); p(bw,bh,mz); p(bw,0,0);
+  } else if (taper === 'MB') {
+    // Тычок: полный на передней половине (z=0..mz), нож-кромка при z=bd
+    const mz = bd / 2;
+    // Передняя грань z=0 (норм. -Z, полная высота)
+    p(0,0,0); p(0,bh,0); p(bw,bh,0);  p(0,0,0); p(bw,bh,0); p(bw,0,0);
+    // Левая грань x=0 (норм. -X): передний прямоугольник + задний треугольник
+    p(0,0,0); p(0,bh,mz); p(0,bh,0);  p(0,0,0); p(0,0,mz); p(0,bh,mz);
+    p(0,0,mz); p(0,0,bd); p(0,bh,mz);
+    // Правая грань x=bw (норм. +X): передний прямоугольник + задний треугольник
+    p(bw,0,0); p(bw,bh,0); p(bw,bh,mz);  p(bw,0,0); p(bw,bh,mz); p(bw,0,mz);
+    p(bw,0,mz); p(bw,bh,mz); p(bw,0,bd);
+    // Плоская крышка y=bh (z=0..mz, норм. +Y)
+    p(0,bh,0); p(0,bh,mz); p(bw,bh,mz);  p(0,bh,0); p(bw,bh,mz); p(bw,bh,0);
+    // Наклонная крышка (z=mz..bd, норм. 0,+mz,+bh)
+    p(0,bh,mz); p(0,0,bd); p(bw,0,bd);  p(0,bh,mz); p(bw,0,bd); p(bw,bh,mz);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Создаёт геометрию кирпича со срезом в одном углу */
+function chamferGeo(bw: number, bd: number, bh: number, corner: 'TL'|'TR'|'BR'|'BL', cx: number, cz: number): THREE.BufferGeometry {
+  let pts: [number, number][];
+  // XZ-плоскость: X = ширина стены, Z = глубина стены
+  if      (corner === 'TL') pts = [[cx,0],[bw,0],[bw,bd],[0,bd],[0,cz]];
+  else if (corner === 'TR') pts = [[0,0],[bw-cx,0],[bw,cz],[bw,bd],[0,bd]];
+  else if (corner === 'BR') pts = [[0,0],[bw,0],[bw,bd-cz],[bw-cx,bd],[0,bd]];
+  else                      pts = [[0,0],[bw,0],[bw,bd],[cx,bd],[0,bd-cz]];
+  const shape = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: bh, bevelEnabled: false });
+  // ExtrudeGeometry выдавливает по Z; поворачиваем чтобы выдавливание шло по Y (высота)
+  geo.rotateX(Math.PI / 2);
+  geo.translate(0, bh, 0);
+  return geo;
+}
+
+/** Создаёт геометрию половинки кирпича по диагонали (треугольная призма) */
+function halfDiagGeo(bw: number, bd: number, bh: number, variant: 'TL'|'TR'|'BR'|'BL'): THREE.BufferGeometry {
+  let pts: [number, number][];
+  if      (variant === 'TL') pts = [[0,0],[bw,0],[0,bd]];
+  else if (variant === 'TR') pts = [[0,0],[bw,0],[bw,bd]];
+  else if (variant === 'BR') pts = [[bw,0],[bw,bd],[0,bd]];
+  else                       pts = [[0,0],[bw,bd],[0,bd]];
+  const shape = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: bh, bevelEnabled: false });
+  geo.rotateX(Math.PI / 2);
+  geo.translate(0, bh, 0);
+  return geo;
 }
 
 export class Renderer3D {
@@ -221,6 +349,7 @@ export class Renderer3D {
 
     // build meshes
     for (let ri = 0; ri < rowCount; ri++) {
+      if (model.rowHidden[ri]) continue;
       const isSelected = ri === selectedRow;
       const palette    = isSelected ? C_SEL : C_NORMAL;
       const offX       = model.rowOffsets[ri] ? CELL * 2 : 0; // half-brick = 2 cells
@@ -231,7 +360,7 @@ export class Renderer3D {
           const bt = model.rows[ri]?.[ci]?.[di];
           if (!bt || bt === BrickType.Empty) continue;
 
-          const [bcw, bcd] = brickCells(bt, model.doors);
+          const [bcw, bcd] = brickCells(bt, model.doors, model.boxes);
           let bw = bcw * CELL - JOINT;
           let bd = bcd * CELL - JOINT;
           let bh = ROW_H;
@@ -240,7 +369,66 @@ export class Renderer3D {
           const x = ci * CELL + JOINT / 2 + offX;
           const z = di * CELL + JOINT / 2;
 
-          if (isDoorBrick(bt)) {
+          if (isWedgeBrick(bt)) {
+            const taper = wedgeTaper(bt);
+            const geo  = wedgeGeo(bw, bd, bh, taper);
+            const col  = isSelected ? C_SEL.front : 0x5fa048;
+            const mat  = new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow    = true;
+            mesh.receiveShadow = true;
+            this.group.add(mesh);
+          } else if (isChamferBrick(bt)) {
+            const corner = chamferCorner(bt);
+            const [cx, cz] = chamferLegs(bt, bw, bd);
+            const geo  = chamferGeo(bw, bd, bh, corner, cx, cz);
+            const col  = isSelected ? C_SEL.front : C_NORMAL.front;
+            const mat  = new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow    = true;
+            mesh.receiveShadow = true;
+            this.group.add(mesh);
+          } else if (isHalfDiagBrick(bt)) {
+            const variant = halfDiagVariant(bt);
+            const geo  = halfDiagGeo(bw, bd, bh, variant);
+            const col  = isSelected ? C_SEL.front : 0xa050c0;
+            const mat  = new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow    = true;
+            mesh.receiveShadow = true;
+            this.group.add(mesh);
+          } else if (isBoxBrick(bt)) {
+            // render from bottom row only (don't duplicate)
+            const prevSame = ri > 0 && model.rows[ri - 1]?.[ci]?.[di] === bt;
+            if (!prevSame) {
+              const tmpl = model.boxes.find(b => b.id === boxTemplateId(bt));
+              if (tmpl) {
+                const totalH = tmpl.heightRows * ROW_H + (tmpl.heightRows - 1) * JOINT;
+                const r = parseInt(tmpl.color.slice(1, 3), 16) / 255;
+                const g = parseInt(tmpl.color.slice(3, 5), 16) / 255;
+                const b2 = parseInt(tmpl.color.slice(5, 7), 16) / 255;
+                const boxMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(r, g, b2),
+                  roughness: 0.55,
+                  metalness: 0.1,
+                  transparent: true,
+                  opacity: 0.88,
+                });
+                const boxW = tmpl.cols   * CELL - JOINT;
+                const boxD = tmpl.depths * CELL - JOINT;
+                const mesh = new THREE.Mesh(
+                  new THREE.BoxGeometry(boxW, totalH, boxD), boxMat,
+                );
+                mesh.position.set(x + boxW / 2, y + totalH / 2, z + boxD / 2);
+                mesh.castShadow    = true;
+                mesh.receiveShadow = true;
+                this.group.add(mesh);
+              }
+            }
+          } else if (isDoorBrick(bt)) {
             // рисуем только от нижнего ряда двери (чтобы не дублировать)
             const prevSame = ri > 0 && model.rows[ri - 1]?.[ci]?.[di] === bt;
             if (prevSame) { /* уже нарисовано снизу */ }
@@ -323,7 +511,7 @@ export class Renderer3D {
         const mortarMat = new THREE.MeshStandardMaterial({ color: 0x7a7060, roughness: 1 });
 
         // horizontal joints between this row and the next
-        if (ri < rowCount - 1) {
+        if (ri < rowCount - 1 && !model.rowHidden[ri + 1]) {
           const offX2   = model.rowOffsets[ri + 1] ? CELL * 2 : 0;
           const mortarY = y + ROW_H + JOINT / 2;
 

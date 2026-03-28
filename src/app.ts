@@ -3,18 +3,56 @@ import {
   createModel, addRow, brickCount,
   resizeModel, fillRowWithBond, clearRow,
   serializeModel, deserializeModel,
-  isDoorBrick, doorTemplateId,
+  isDoorBrick, doorTemplateId, brickCells, chamferLegs, chamferCorner,
 } from './model.js';
 import { Renderer3D     } from './renderer3d.js';
 import { GridEditor     } from './gridEditor.js';
 import { DoorEditorModal } from './doorEditor.js';
+import { BoxEditorModal  } from './boxEditor.js';
 
 const STATIC_TOOL_LABELS: Record<string, string> = {
   [BrickType.Empty]:             'Нет',
   [BrickType.FullStretcher]:     'Ложок',
   [BrickType.FullHeader]:        'Тычок',
-  [BrickType.ThreeQuarter]:      '3/4',
-  [BrickType.Half]:              '1/2',
+  [BrickType.ThreeQuarter]:       '3/4 Ложок',
+  [BrickType.ThreeQuarterHeader]: '3/4 Тычок',
+  [BrickType.Quarter]:            '1/4 Ложок',
+  [BrickType.QuarterHeader]:      '1/4 Тычок',
+  [BrickType.Half]:               '1/2',
+  [BrickType.HalfLong]:           '1/2 Ложок вдоль',
+  [BrickType.HalfLongHeader]:     '1/2 Тычок вдоль',
+  [BrickType.ChamferTL]:          'Срез ↖ Ложок',
+  [BrickType.ChamferTR]:          'Срез ↗ Ложок',
+  [BrickType.ChamferBR]:          'Срез ↘ Ложок',
+  [BrickType.ChamferBL]:          'Срез ↙ Ложок',
+  [BrickType.ChamferHeaderTL]:    'Срез ↖ Тычок',
+  [BrickType.ChamferHeaderTR]:    'Срез ↗ Тычок',
+  [BrickType.ChamferHeaderBR]:    'Срез ↘ Тычок',
+  [BrickType.ChamferHeaderBL]:    'Срез ↙ Тычок',
+  [BrickType.ChamferTL2]:         'Срез½ ↖ Ложок',
+  [BrickType.ChamferTR2]:         'Срез½ ↗ Ложок',
+  [BrickType.ChamferBR2]:         'Срез½ ↘ Ложок',
+  [BrickType.ChamferBL2]:         'Срез½ ↙ Ложок',
+  [BrickType.ChamferHeaderTL2]:   'Срез½ ↖ Тычок',
+  [BrickType.ChamferHeaderTR2]:   'Срез½ ↗ Тычок',
+  [BrickType.ChamferHeaderBR2]:   'Срез½ ↘ Тычок',
+  [BrickType.ChamferHeaderBL2]:   'Срез½ ↙ Тычок',
+  [BrickType.WedgeL]:             'Клин Лж →',
+  [BrickType.WedgeR]:             'Клин Лж ←',
+  [BrickType.WedgeHeaderF]:       'Клин Тч ↓',
+  [BrickType.WedgeHeaderB]:       'Клин Тч ↑',
+  [BrickType.WedgeHalfL]:         'Клин½ Лж →',
+  [BrickType.WedgeHalfR]:         'Клин½ Лж ←',
+  [BrickType.WedgeHalfHeaderF]:   'Клин½ Тч ↓',
+  [BrickType.WedgeHalfHeaderB]:   'Клин½ Тч ↑',
+  [BrickType.HalfDiagTL]:        'Диаг ↖',
+  [BrickType.HalfDiagTR]:        'Диаг ↗',
+  [BrickType.HalfDiagBR]:        'Диаг ↘',
+  [BrickType.HalfDiagBL]:        'Диаг ↙',
+  [BrickType.WedgeMidR]:         'Клин½→ Лж',
+  [BrickType.WedgeMidL]:         'Клин←½ Лж',
+  [BrickType.WedgeMidHeaderF]:   'Клин½↓ Тч',
+  [BrickType.WedgeMidHeaderB]:   'Клин↑½ Тч',
   [BrickType.Hole]:              'Отверстие',
   [BrickType.VerticalStretcher]: 'На ребро',
   [BrickType.Grate]:             'Решетка',
@@ -25,6 +63,10 @@ export class App {
   private renderer3d:  Renderer3D;
   private gridEditor:  GridEditor;
   private doorEditor:  DoorEditorModal;
+  private boxEditor:   BoxEditorModal;
+  private history:     string[] = [];
+  private historyPtr   = -1;
+  private _histLocked  = false;
   private selectedRow  = 0;
   private selectedTool: string = BrickType.FullStretcher;
   private selectedBond = BondPattern.Chain;
@@ -42,9 +84,17 @@ export class App {
     );
     this.gridEditor.selectedRow  = this.selectedRow;
     this.gridEditor.selectedTool = this.selectedTool;
-    this.gridEditor.onChange     = () => { this.refresh3d(); this.refreshCounts(); this.refreshStatus(); };
-    this.gridEditor.onToolChange = (tool: string) => {
-      this.selectTool(tool);
+    this.gridEditor.onChange   = () => { this.refresh3d(); this.refreshCounts(); this.refreshStatus(); this.refreshRowList(); };
+    this.gridEditor.onPaintEnd = () => { this.pushHistory(); };
+    this.gridEditor.onToolChange = (tool: string) => { this.selectTool(tool); };
+    this.gridEditor.onResize = (newCols: number, newDepths: number) => {
+      resizeModel(this.model, newCols, newDepths);
+      const inpC = document.getElementById('inp-cols')   as HTMLInputElement;
+      const inpD = document.getElementById('inp-depths') as HTMLInputElement;
+      if (inpC) inpC.value = String(newCols / 4);
+      if (inpD) inpD.value = String(newDepths / 2);
+      this.pushHistory();
+      this.refreshAll();
     };
 
     this.doorEditor = new DoorEditorModal(this.model);
@@ -54,9 +104,193 @@ export class App {
       this.refreshAll();
     };
 
+    this.boxEditor = new BoxEditorModal(this.model);
+    this.boxEditor.onBoxCreated = (bt: string) => {
+      if (bt) this.selectTool(bt);
+      this.refreshBoxButtons();
+      this.refreshAll();
+    };
+
     this.renderer3d.bindControls();
     this.bindUI();
+    this.addBrickIcons();
     this.refreshAll();
+
+    // initial history snapshot
+    this.pushHistory();
+
+    // global keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && !e.shiftKey && e.key === 'z') { e.preventDefault(); this.undo(); }
+      if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); this.redo(); }
+    });
+  }
+
+  // ── brick icons ──────────────────────────────────────────────────────────
+  private addBrickIcons() {
+    const CELL = 6; // px per cell in icon
+    const COLORS: Record<string, string> = {
+      [BrickType.FullStretcher]:      '#d27846',
+      [BrickType.FullHeader]:         '#4688d2',
+      [BrickType.ThreeQuarter]:       '#be6b41',
+      [BrickType.ThreeQuarterHeader]: '#3a7ac2',
+      [BrickType.Quarter]:            '#b05a30',
+      [BrickType.QuarterHeader]:      '#2a68b8',
+      [BrickType.Half]:               '#a85a32',
+      [BrickType.HalfLong]:           '#c87850',
+      [BrickType.HalfLongHeader]:     '#5090d0',
+      [BrickType.ChamferTL]:          '#e07838',
+      [BrickType.ChamferTR]:          '#e07838',
+      [BrickType.ChamferBR]:          '#e07838',
+      [BrickType.ChamferBL]:          '#e07838',
+      [BrickType.ChamferHeaderTL]:    '#e07838',
+      [BrickType.ChamferHeaderTR]:    '#e07838',
+      [BrickType.ChamferHeaderBR]:    '#e07838',
+      [BrickType.ChamferHeaderBL]:    '#e07838',
+      [BrickType.ChamferTL2]:         '#e07838',
+      [BrickType.ChamferTR2]:         '#e07838',
+      [BrickType.ChamferBR2]:         '#e07838',
+      [BrickType.ChamferBL2]:         '#e07838',
+      [BrickType.ChamferHeaderTL2]:   '#e07838',
+      [BrickType.ChamferHeaderTR2]:   '#e07838',
+      [BrickType.ChamferHeaderBR2]:   '#e07838',
+      [BrickType.ChamferHeaderBL2]:   '#e07838',
+      [BrickType.WedgeL]:             '#5fa040',
+      [BrickType.WedgeR]:             '#5fa040',
+      [BrickType.WedgeHeaderF]:       '#3080a8',
+      [BrickType.WedgeHeaderB]:       '#3080a8',
+      [BrickType.WedgeHalfL]:         '#5fa040',
+      [BrickType.WedgeHalfR]:         '#5fa040',
+      [BrickType.WedgeHalfHeaderF]:   '#3080a8',
+      [BrickType.WedgeHalfHeaderB]:   '#3080a8',
+      [BrickType.HalfDiagTL]:        '#a050c0',
+      [BrickType.HalfDiagTR]:        '#a050c0',
+      [BrickType.HalfDiagBR]:        '#a050c0',
+      [BrickType.HalfDiagBL]:        '#a050c0',
+      [BrickType.WedgeMidR]:         '#70b850',
+      [BrickType.WedgeMidL]:         '#70b850',
+      [BrickType.WedgeMidHeaderF]:   '#4098c8',
+      [BrickType.WedgeMidHeaderB]:   '#4098c8',
+      [BrickType.Hole]:               '#19120c',
+      [BrickType.VerticalStretcher]:  '#5aab58',
+      [BrickType.Grate]:              '#3a3a3a',
+    };
+
+    document.querySelectorAll<HTMLElement>('#tool-panel .btn-tool[data-tool]').forEach(btn => {
+      const bt = btn.dataset.tool!;
+      if (isDoorBrick(bt) || !(bt in COLORS)) return;
+
+      const [bw, bd] = brickCells(bt);
+      const W = bw * CELL;
+      const H = bd * CELL;
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = W;
+      canvas.height = H;
+      canvas.style.display = 'block';
+      canvas.style.imageRendering = 'pixelated';
+      canvas.style.flexShrink = '0';
+
+      const ctx = canvas.getContext('2d')!;
+      const color = COLORS[bt];
+
+      // Срез — рисуем пятиугольник
+      if (bt.startsWith('Chamfer')) {
+        const corner = chamferCorner(bt);
+        const [rawCx, rawCz] = chamferLegs(bt, bw, bd);
+        const cx = rawCx * CELL, cz = rawCz * CELL;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        if      (corner === 'TL') { ctx.moveTo(cx,0); ctx.lineTo(W,0); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.lineTo(0,cz); }
+        else if (corner === 'TR') { ctx.moveTo(0,0); ctx.lineTo(W-cx,0); ctx.lineTo(W,cz); ctx.lineTo(W,H); ctx.lineTo(0,H); }
+        else if (corner === 'BR') { ctx.moveTo(0,0); ctx.lineTo(W,0); ctx.lineTo(W,H-cz); ctx.lineTo(W-cx,H); ctx.lineTo(0,H); }
+        else                      { ctx.moveTo(0,0); ctx.lineTo(W,0); ctx.lineTo(W,H); ctx.lineTo(cx,H); ctx.lineTo(0,H-cz); }
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#321a08'; ctx.lineWidth = 1; ctx.stroke();
+        btn.appendChild(canvas);
+        return;
+      }
+
+      // Клин — рисуем профиль вид спереди (треугольник или трапеция)
+      if (bt.startsWith('Wedge')) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        if      (bt === 'WedgeL' || bt === 'WedgeHalfL')             { ctx.moveTo(0,H); ctx.lineTo(W,H); ctx.lineTo(0,0); }
+        else if (bt === 'WedgeR' || bt === 'WedgeHalfR')             { ctx.moveTo(0,H); ctx.lineTo(W,H); ctx.lineTo(W,0); }
+        else if (bt === 'WedgeHeaderF' || bt === 'WedgeHalfHeaderF') { ctx.moveTo(0,H); ctx.lineTo(W,H); ctx.lineTo(0,0); }
+        else if (bt === 'WedgeHeaderB' || bt === 'WedgeHalfHeaderB') { ctx.moveTo(0,H); ctx.lineTo(W,H); ctx.lineTo(W,0); }
+        // Клин с середины: трапеция (левая половина — прямоугольник, правая — треугольник)
+        else if (bt === 'WedgeMidR') {
+          ctx.moveTo(0,0); ctx.lineTo(W/2,0); ctx.lineTo(W,H); ctx.lineTo(0,H);
+        }
+        else if (bt === 'WedgeMidL') {
+          ctx.moveTo(W/2,0); ctx.lineTo(W,0); ctx.lineTo(W,H); ctx.lineTo(0,H);
+        }
+        else if (bt === 'WedgeMidHeaderF') {
+          // полный снизу, клин от середины к верхнему углу (↓)
+          ctx.moveTo(0,H/2); ctx.lineTo(W,0); ctx.lineTo(W,H); ctx.lineTo(0,H);
+        }
+        else { // WedgeMidHeaderB — полный сверху, клин от середины к нижнему углу (↑)
+          ctx.moveTo(0,0); ctx.lineTo(W,0); ctx.lineTo(W,H/2); ctx.lineTo(0,H);
+        }
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#0a2a12'; ctx.lineWidth = 1; ctx.stroke();
+        btn.appendChild(canvas);
+        return;
+      }
+
+      // Диагональ — треугольник по диагонали кирпича
+      if (bt.startsWith('HalfDiag')) {
+        const v = bt.slice(8) as 'TL'|'TR'|'BR'|'BL';
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        if      (v === 'TL') { ctx.moveTo(0,0); ctx.lineTo(W,0); ctx.lineTo(0,H); }
+        else if (v === 'TR') { ctx.moveTo(0,0); ctx.lineTo(W,0); ctx.lineTo(W,H); }
+        else if (v === 'BR') { ctx.moveTo(W,0); ctx.lineTo(W,H); ctx.lineTo(0,H); }
+        else                 { ctx.moveTo(0,0); ctx.lineTo(W,H); ctx.lineTo(0,H); }
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#4a1a60'; ctx.lineWidth = 1; ctx.stroke();
+        btn.appendChild(canvas);
+        return;
+      }
+
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#321a08';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+      // Отверстие — крест
+      if (bt === BrickType.Hole) {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(2, 2); ctx.lineTo(W - 2, H - 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(W - 2, 2); ctx.lineTo(2, H - 2); ctx.stroke();
+      }
+      // Решетка — горизонтальные прутья
+      if (bt === BrickType.Grate) {
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+          const y = H * i / 4;
+          ctx.beginPath(); ctx.moveTo(1, y); ctx.lineTo(W - 1, y); ctx.stroke();
+        }
+        for (let i = 1; i <= 6; i++) {
+          const x = W * i / 7;
+          ctx.beginPath(); ctx.moveTo(x, 1); ctx.lineTo(x, H - 1); ctx.stroke();
+        }
+      }
+      // На ребро — пунктир по длине
+      if (bt === BrickType.VerticalStretcher) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.setLineDash([2, 2]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      btn.appendChild(canvas);
+    });
   }
 
   // ── full refresh ─────────────────────────────────────────────────────────
@@ -70,6 +304,48 @@ export class App {
   }
 
   private refresh3d() { this.renderer3d.update(this.model, this.selectedRow, this.showMortar, this.sliceRow, this.sliceCol); }
+
+  // ── history (undo / redo) ─────────────────────────────────────────────────
+  pushHistory() {
+    if (this._histLocked) return;
+    this.history = this.history.slice(0, this.historyPtr + 1);
+    this.history.push(serializeModel(this.model));
+    if (this.history.length > 60) this.history.shift();
+    this.historyPtr = this.history.length - 1;
+    this._updateUndoButtons();
+  }
+
+  private _restoreFromHistory(json: string) {
+    this._histLocked = true;
+    this.model = deserializeModel(json);
+    this.gridEditor.setModel(this.model);
+    (this.doorEditor as any).model = this.model;
+    this.boxEditor.setModel(this.model);
+    this.refreshDoorButtons();
+    this.refreshBoxButtons();
+    this.refreshAll();
+    this._histLocked = false;
+    this._updateUndoButtons();
+  }
+
+  undo() {
+    if (this.historyPtr <= 0) return;
+    this.historyPtr--;
+    this._restoreFromHistory(this.history[this.historyPtr]);
+  }
+
+  redo() {
+    if (this.historyPtr >= this.history.length - 1) return;
+    this.historyPtr++;
+    this._restoreFromHistory(this.history[this.historyPtr]);
+  }
+
+  private _updateUndoButtons() {
+    const btnUndo = document.getElementById('btn-undo') as HTMLButtonElement | null;
+    const btnRedo = document.getElementById('btn-redo') as HTMLButtonElement | null;
+    if (btnUndo) btnUndo.disabled = this.historyPtr <= 0;
+    if (btnRedo) btnRedo.disabled = this.historyPtr >= this.history.length - 1;
+  }
 
   private selectTool(bt: string) {
     this.selectedTool = bt;
@@ -91,13 +367,63 @@ export class App {
       });
     });
   }
+  private refreshBoxButtons() {
+    const panel = document.getElementById('box-buttons')!;
+    panel.innerHTML = this.model.boxes.map(b => `
+      <button class="btn-tool${this.selectedTool === `box:${b.id}` ? ' active' : ''}"
+              data-tool="box:${b.id}"
+              style="border-left: 4px solid ${b.color};">${b.name}</button>
+    `).join('');
+    panel.querySelectorAll('.btn-tool[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectTool((btn as HTMLElement).dataset.tool!);
+      });
+    });
+  }
   private refreshGrid()   { this.gridEditor.showMortar = this.showMortar; this.gridEditor.draw(); }
   private refreshCounts() {
     const LABELS: Record<string, string> = {
       [BrickType.FullStretcher]:     'Ложок',
       [BrickType.FullHeader]:        'Тычок',
-      [BrickType.ThreeQuarter]:      '3/4',
-      [BrickType.Half]:              '1/2',
+      [BrickType.ThreeQuarter]:       '3/4 Ложок',
+      [BrickType.ThreeQuarterHeader]: '3/4 Тычок',
+      [BrickType.Quarter]:            '1/4 Ложок',
+      [BrickType.QuarterHeader]:      '1/4 Тычок',
+      [BrickType.Half]:               '1/2',
+      [BrickType.HalfLong]:           '1/2 Ложок вдоль',
+      [BrickType.HalfLongHeader]:     '1/2 Тычок вдоль',
+      [BrickType.ChamferTL]:          'Срез ↖ Ложок',
+      [BrickType.ChamferTR]:          'Срез ↗ Ложок',
+      [BrickType.ChamferBR]:          'Срез ↘ Ложок',
+      [BrickType.ChamferBL]:          'Срез ↙ Ложок',
+      [BrickType.ChamferHeaderTL]:    'Срез ↖ Тычок',
+      [BrickType.ChamferHeaderTR]:    'Срез ↗ Тычок',
+      [BrickType.ChamferHeaderBR]:    'Срез ↘ Тычок',
+      [BrickType.ChamferHeaderBL]:    'Срез ↙ Тычок',
+      [BrickType.ChamferTL2]:         'Срез½ ↖ Ложок',
+      [BrickType.ChamferTR2]:         'Срез½ ↗ Ложок',
+      [BrickType.ChamferBR2]:         'Срез½ ↘ Ложок',
+      [BrickType.ChamferBL2]:         'Срез½ ↙ Ложок',
+      [BrickType.ChamferHeaderTL2]:   'Срез½ ↖ Тычок',
+      [BrickType.ChamferHeaderTR2]:   'Срез½ ↗ Тычок',
+      [BrickType.ChamferHeaderBR2]:   'Срез½ ↘ Тычок',
+      [BrickType.ChamferHeaderBL2]:   'Срез½ ↙ Тычок',
+      [BrickType.WedgeL]:             'Клин Лж →',
+      [BrickType.WedgeR]:             'Клин Лж ←',
+      [BrickType.WedgeHeaderF]:       'Клин Тч ↓',
+      [BrickType.WedgeHeaderB]:       'Клин Тч ↑',
+      [BrickType.WedgeHalfL]:         'Клин½ Лж →',
+      [BrickType.WedgeHalfR]:         'Клин½ Лж ←',
+      [BrickType.WedgeHalfHeaderF]:   'Клин½ Тч ↓',
+      [BrickType.WedgeHalfHeaderB]:   'Клин½ Тч ↑',
+      [BrickType.HalfDiagTL]:        'Диаг ↖',
+      [BrickType.HalfDiagTR]:        'Диаг ↗',
+      [BrickType.HalfDiagBR]:        'Диаг ↘',
+      [BrickType.HalfDiagBL]:        'Диаг ↙',
+      [BrickType.WedgeMidR]:         'Клин½→ Лж',
+      [BrickType.WedgeMidL]:         'Клин←½ Лж',
+      [BrickType.WedgeMidHeaderF]:   'Клин½↓ Тч',
+      [BrickType.WedgeMidHeaderB]:   'Клин↑½ Тч',
       [BrickType.Hole]:              'Отверстие',
       [BrickType.VerticalStretcher]: 'На ребро',
       [BrickType.Grate]:             'Решетка',
@@ -147,13 +473,18 @@ export class App {
       const badge = hasHeader ? 'тыч' : 'лож';
       const off   = this.model.rowOffsets[i];
 
+      const hidden = this.model.rowHidden[i];
+
       const item = document.createElement('div');
-      item.className = 'row-item' + (i === this.selectedRow ? ' selected' : '');
+      item.className = 'row-item' + (i === this.selectedRow ? ' selected' : '') + (hidden ? ' row-hidden' : '');
       item.innerHTML = `
         <span>Ряд ${i + 1}</span>
         <span class="badge">${badge}</span>
         <button class="btn-offset ${off ? 'on' : ''}" data-row="${i}" title="Смещение на ½ кирпича">
           ${off ? '½→' : '0'}
+        </button>
+        <button class="btn-eye ${hidden ? 'hidden' : ''}" data-row="${i}" title="${hidden ? 'Показать ряд' : 'Скрыть ряд'}">
+          ${hidden ? '🙈' : '👁'}
         </button>`;
 
       item.querySelector('span')!.addEventListener('click', () => {
@@ -171,6 +502,12 @@ export class App {
         this.model.rowOffsets[i] = !this.model.rowOffsets[i];
         this.refreshAll();
       });
+      item.querySelector('.btn-eye')!.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.model.rowHidden[i] = !this.model.rowHidden[i];
+        this.refresh3d();
+        this.refreshRowList();
+      });
       list.appendChild(item);
     }
     // scroll selected row into view
@@ -187,9 +524,18 @@ export class App {
       });
     });
 
+    // Undo / redo buttons
+    document.getElementById('btn-undo')!.addEventListener('click', () => this.undo());
+    document.getElementById('btn-redo')!.addEventListener('click', () => this.redo());
+
     // Door editor button
     document.getElementById('btn-door-editor')!.addEventListener('click', () => {
       this.doorEditor.open();
+    });
+
+    // Box editor button
+    document.getElementById('btn-box-editor')!.addEventListener('click', () => {
+      this.boxEditor.open();
     });
 
     // Bond buttons
@@ -204,10 +550,12 @@ export class App {
     // Fill / clear
     document.getElementById('btn-fill')!.addEventListener('click', () => {
       fillRowWithBond(this.model, this.selectedRow, this.selectedBond);
+      this.pushHistory();
       this.refreshAll();
     });
     document.getElementById('btn-clear')!.addEventListener('click', () => {
       clearRow(this.model, this.selectedRow);
+      this.pushHistory();
       this.refreshAll();
     });
 
@@ -218,12 +566,14 @@ export class App {
       const bricks = Math.max(2, Math.min(120, parseInt(inpCols.value) || 20));
       inpCols.value = String(bricks);
       resizeModel(this.model, bricks * 4, this.model.depths);
+      this.pushHistory();
       this.refreshAll();
     });
     inpDepths.addEventListener('change', () => {
       const bricks = Math.max(1, Math.min(60, parseInt(inpDepths.value) || 8));
       inpDepths.value = String(bricks);
       resizeModel(this.model, this.model.cols, bricks * 2);
+      this.pushHistory();
       this.refreshAll();
     });
 
@@ -232,6 +582,7 @@ export class App {
       addRow(this.model);
       this.selectedRow = this.model.rows.length - 1;
       this.gridEditor.selectedRow = this.selectedRow;
+      this.pushHistory();
       this.refreshAll();
       (this as any)._resetSlice?.();
     });
@@ -244,6 +595,32 @@ export class App {
     // Export 3D view PNG
     document.getElementById('btn-export-3d')!.addEventListener('click', () => {
       this.renderer3d.exportPNG();
+    });
+
+    // Иконка на кнопке "Со срезом"
+    (() => {
+      const btn = document.getElementById('btn-chamfer-toggle')!;
+      const W = 24, H = 12, cs = 6;
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      cv.style.display = 'block'; cv.style.margin = '0 auto';
+      const cx = cv.getContext('2d')!;
+      cx.fillStyle = '#e07838';
+      cx.beginPath();
+      cx.moveTo(cs, 0); cx.lineTo(W, 0); cx.lineTo(W, H); cx.lineTo(0, H); cx.lineTo(0, cs);
+      cx.closePath(); cx.fill();
+      cx.strokeStyle = '#321a08'; cx.lineWidth = 1; cx.stroke();
+      btn.style.display = 'flex'; btn.style.flexDirection = 'column';
+      btn.style.alignItems = 'center'; btn.style.gap = '3px';
+      btn.appendChild(cv);
+    })();
+
+    // Chamfer section toggle
+    document.getElementById('btn-chamfer-toggle')!.addEventListener('click', () => {
+      const panel = document.getElementById('chamfer-panel')!;
+      const open = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : 'block';
+      document.getElementById('btn-chamfer-toggle')!.textContent = open ? 'Со срезом ▾' : 'Со срезом ▲';
     });
 
     // Slice Y slider (rows)
@@ -291,6 +668,25 @@ export class App {
       this.refreshAll();
     });
 
+    // New project
+    document.getElementById('btn-new')!.addEventListener('click', () => {
+      if (!confirm('Создать новый проект? Несохранённые изменения будут потеряны.')) return;
+      const cols   = this.model.cols;
+      const depths = this.model.depths;
+      this.model = createModel(cols, depths);
+      this.selectedRow = 0;
+      this.gridEditor.setModel(this.model);
+      (this.doorEditor as any).model = this.model;
+      this.boxEditor.setModel(this.model);
+      this.gridEditor.selectedRow = 0;
+      this.refreshDoorButtons();
+      this.refreshBoxButtons();
+      this.history = [serializeModel(this.model)];
+      this.historyPtr = 0;
+      this._updateUndoButtons();
+      this.refreshAll();
+    });
+
     // Save
     document.getElementById('btn-save')!.addEventListener('click', async () => {
       const json = serializeModel(this.model);
@@ -326,8 +722,9 @@ export class App {
       file.text().then(json => {
         this.model = deserializeModel(json);
         this.gridEditor.setModel(this.model);
-        // re-bind door editor to new model
+        // re-bind editors to new model
         (this.doorEditor as any).model = this.model;
+        this.boxEditor.setModel(this.model);
         this.selectedRow = 0;
         this.gridEditor.selectedRow = 0;
         const inp = document.getElementById('inp-cols') as HTMLInputElement;
@@ -335,7 +732,12 @@ export class App {
         inp.value = String(Math.round(this.model.cols / 4));
         ind.value = String(Math.round(this.model.depths / 2));
         this.refreshDoorButtons();
+        this.refreshBoxButtons();
         this.refreshAll();
+        // reset history to the loaded state
+        this.history = [serializeModel(this.model)];
+        this.historyPtr = 0;
+        this._updateUndoButtons();
       });
     });
   }
