@@ -313,11 +313,6 @@
   <input type="number" id="inp-depths" value="15" min="1" max="60" />
 
   <div class="sep"></div>
-  <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-    <input type="checkbox" id="chk-mortar" style="accent-color:#c87840"> Швы
-  </label>
-
-  <div class="sep"></div>
   <button id="btn-save">💾 Сохранить</button>
   <button id="btn-load">📂 Открыть</button>
   <button id="btn-export-png">🖼 Экспорт PNG</button>
@@ -349,6 +344,9 @@
     <button class="btn-tool" data-tool="Half">1/2</button>
     <button class="btn-tool" data-tool="Hole">Отверстие</button>
     <button class="btn-tool" data-tool="VerticalStretcher">На ребро</button>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 2px;font-size:11px;color:#a09070;">
+      <input type="checkbox" id="chk-mortar" style="accent-color:#c87840"> Швы
+    </label>
   </div>
 
   <!-- 3D + 2D -->
