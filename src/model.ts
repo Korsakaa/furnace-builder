@@ -21,7 +21,7 @@ export interface DoorTemplate {
   cols: number;        // width in grid cells (X, horizontal)
   heightRows: number;  // height in brick rows (Y, vertical — how many rows the door spans)
   depth: number;       // Z depth in cells: 2 for Ложок, 4 for Тычок
-  offsetX: 'left' | 'right';  // alignment within brick slot
+  offsetX: 'left' | 'center' | 'right';  // alignment within brick slot
   brickBase: 'Ложок' | 'Тычок';
   shape: boolean[][];  // [col][rowInDoor] — front view, true = frame material
 }
@@ -78,7 +78,12 @@ export function brickCount(m: BrickModel): number {
 export function brickCells(bt: string, doors?: DoorTemplate[]): [number, number] {
   if (isDoorBrick(bt) && doors) {
     const tmpl = doors.find(d => d.id === doorTemplateId(bt));
-    if (tmpl) return [tmpl.cols, tmpl.depth];
+    if (tmpl) {
+      // Тычок: footprint rotated — 2 cells wide (X), tmpl.cols cells deep (Z)
+      // Ложок: tmpl.cols cells wide (X), 2 cells deep (Z)
+      if (tmpl.brickBase === 'Тычок') return [2, tmpl.cols];
+      return [tmpl.cols, 2];
+    }
   }
   switch (bt) {
     case BrickType.FullStretcher:     return [4, 2];

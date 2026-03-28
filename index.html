@@ -365,7 +365,8 @@
   <div class="sep"></div>
   <button id="btn-save">💾 Сохранить</button>
   <button id="btn-load">📂 Открыть</button>
-  <button id="btn-export-png">🖼 Экспорт PNG</button>
+  <button id="btn-export-png">🖼 Экспорт всех рядов в PNG</button>
+  <button id="btn-export-3d">🖼 Экспорт 3D вида в PNG</button>
   <input type="file" id="file-input" accept=".json" style="display:none" />
 </div>
 
@@ -459,7 +460,7 @@
 
     <div class="door-row" style="gap:12px;">
       <div>
-        <div style="font-size:10px;color:#a09070;margin-bottom:3px;">Тип кирпича:</div>
+        <div style="font-size:10px;color:#a09070;margin-bottom:3px;">Тип дверцы:</div>
         <div style="display:flex;gap:4px;">
           <button class="btn-tool door-base-btn active" data-base="Ложок">Ложок</button>
           <button class="btn-tool door-base-btn" data-base="Тычок">Тычок</button>
@@ -469,6 +470,7 @@
         <div style="font-size:10px;color:#a09070;margin-bottom:3px;">Смещение:</div>
         <div style="display:flex;gap:4px;">
           <button class="btn-tool door-offset-btn active" data-offset="left">← Лево</button>
+          <button class="btn-tool door-offset-btn" data-offset="center">Центр</button>
           <button class="btn-tool door-offset-btn" data-offset="right">Право →</button>
         </div>
       </div>

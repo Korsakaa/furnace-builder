@@ -196,23 +196,43 @@ function drawBricks(
       ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.fill();
       ctx.strokeStyle = brickBorder(gray); ctx.lineWidth = 1.5; ctx.stroke();
 
-      // дверца — рисуем форму из shape (фронтальный вид, row=0 сверху)
+      // дверца — рисуем форму из shape (вид сверху)
       if (isDoorBrick(bt) && !gray) {
         const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
         if (tmpl) {
           ctx.save();
           ctx.beginPath(); ctx.roundRect(sx, sy, pw, ph, 2); ctx.clip();
-          // В top-down редакторе показываем срез shape по строке 0 (низ двери)
-          for (let c = 0; c < tmpl.cols; c++) {
-            const hasFrame = tmpl.shape[c]?.some(v => v) ?? false;
-            const cx = sx + c * SC - m + 1;
-            ctx.fillStyle = hasFrame ? '#6aaabf' : '#111a20';
-            ctx.fillRect(cx, sy + m - 1, SC - 2, ph);
+
+          if (tmpl.brickBase === 'Тычок') {
+            // Тычок: колонки shape — слои по глубине (Y в виде сверху)
+            for (let c = 0; c < tmpl.cols; c++) {
+              const hasFrame = tmpl.shape[c]?.some(v => v) ?? false;
+              const cy = sy + c * SC - m + 1;
+              ctx.fillStyle = hasFrame ? '#6aaabf' : '#111a20';
+              ctx.fillRect(sx + m - 1, cy, pw, SC - 2);
+            }
+            // индикатор смещения: вертикальная полоска слева/центр/справа
+            ctx.fillStyle = 'rgba(255,200,80,0.6)';
+            const indX = tmpl.offsetX === 'right'  ? sx + pw - 3
+                       : tmpl.offsetX === 'center' ? sx + pw / 2 - 1
+                       : sx;
+            ctx.fillRect(indX, sy, 3, ph);
+          } else {
+            // Ложок: колонки shape — полосы по ширине (X)
+            for (let c = 0; c < tmpl.cols; c++) {
+              const hasFrame = tmpl.shape[c]?.some(v => v) ?? false;
+              const cx = sx + c * SC - m + 1;
+              ctx.fillStyle = hasFrame ? '#6aaabf' : '#111a20';
+              ctx.fillRect(cx, sy + m - 1, SC - 2, ph);
+            }
+            // индикатор смещения: горизонтальная полоска сверху/центр/снизу
+            ctx.fillStyle = 'rgba(255,200,80,0.6)';
+            const indY = tmpl.offsetX === 'right'  ? sy + ph - 3
+                       : tmpl.offsetX === 'center' ? sy + ph / 2 - 1
+                       : sy;
+            ctx.fillRect(sx, indY, pw, 3);
           }
-          // индикатор смещения
-          ctx.fillStyle = 'rgba(255,200,80,0.5)';
-          const indicatorX = tmpl.offsetX === 'left' ? sx : sx + pw - 4;
-          ctx.fillRect(indicatorX, sy, 4, ph);
+
           ctx.restore();
         }
       }

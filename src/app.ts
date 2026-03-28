@@ -236,9 +236,14 @@ export class App {
       (this as any)._resetSlice?.();
     });
 
-    // Export PNG
+    // Export PNG (all rows)
     document.getElementById('btn-export-png')!.addEventListener('click', () => {
       this.gridEditor.exportAllRows();
+    });
+
+    // Export 3D view PNG
+    document.getElementById('btn-export-3d')!.addEventListener('click', () => {
+      this.renderer3d.exportPNG();
     });
 
     // Slice Y slider (rows)

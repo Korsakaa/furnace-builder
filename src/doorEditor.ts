@@ -13,7 +13,7 @@ export class DoorEditorModal {
   private heightRows = 3;
   private depth      = 2;
   private brickBase: 'Ложок' | 'Тычок' = 'Ложок';
-  private offsetX: 'left' | 'right'    = 'left';
+  private offsetX: 'left' | 'center' | 'right' = 'left';
   private painting   = false;
   private paintValue = true;
   private doorCounter = 1;
@@ -42,7 +42,7 @@ export class DoorEditorModal {
   // ── shape helpers ─────────────────────────────────────────────────────────
   private initShape() {
     this.shape = Array.from({ length: this.cols }, () =>
-      Array.from({ length: this.heightRows }, () => false)
+      Array.from({ length: this.heightRows }, () => true)
     );
   }
 
@@ -51,7 +51,7 @@ export class DoorEditorModal {
     this.cols       = newCols;
     this.heightRows = newRows;
     this.shape = Array.from({ length: newCols }, (_, c) =>
-      Array.from({ length: newRows }, (_, r) => old[c]?.[r] ?? false)
+      Array.from({ length: newRows }, (_, r) => old[c]?.[r] ?? true)
     );
   }
 
@@ -132,20 +132,15 @@ export class DoorEditorModal {
       btn.addEventListener('click', () => {
         this.brickBase = (btn as HTMLElement).dataset.base as 'Ложок' | 'Тычок';
         this.depth = this.brickBase === 'Ложок' ? 2 : 4;
-        this.cols  = this.brickBase === 'Ложок' ? 4 : 2;
         document.querySelectorAll('.door-base-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        this.resizeShape(this.cols, this.heightRows);
-        this.resizeCanvas();
-        this.drawCanvas();
-        (document.getElementById('door-inp-cols') as HTMLInputElement).value = String(this.cols);
       });
     });
 
     // Offset buttons
     document.querySelectorAll('.door-offset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        this.offsetX = (btn as HTMLElement).dataset.offset as 'left' | 'right';
+        this.offsetX = (btn as HTMLElement).dataset.offset as 'left' | 'center' | 'right';
         document.querySelectorAll('.door-offset-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
       });
@@ -154,7 +149,7 @@ export class DoorEditorModal {
     // cols / rows inputs
     const inpCols = document.getElementById('door-inp-cols')   as HTMLInputElement;
     const inpRows = document.getElementById('door-inp-rows')   as HTMLInputElement;
-    document.getElementById('door-btn-resize')!.addEventListener('click', () => {
+    const applyResize = () => {
       const c = Math.max(1, Math.min(16, parseInt(inpCols.value) || this.cols));
       const r = Math.max(1, Math.min(12, parseInt(inpRows.value) || this.heightRows));
       inpCols.value = String(c);
@@ -162,7 +157,10 @@ export class DoorEditorModal {
       this.resizeShape(c, r);
       this.resizeCanvas();
       this.drawCanvas();
-    });
+    };
+    document.getElementById('door-btn-resize')!.addEventListener('click', applyResize);
+    inpCols.addEventListener('input', applyResize);
+    inpRows.addEventListener('input', applyResize);
 
     // clear
     document.getElementById('door-btn-clear')!.addEventListener('click', () => {
@@ -226,6 +224,11 @@ export class DoorEditorModal {
     list.querySelectorAll('.door-delete-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id!;
+        const bt = `door:${id}`;
+        for (const row of this.model.rows)
+          for (const col of row)
+            for (let d = 0; d < col.length; d++)
+              if (col[d] === bt) col[d] = 'Empty';
         this.model.doors = this.model.doors.filter(d => d.id !== id);
         this.refreshDoorList();
         this.onDoorCreated?.('');  // signal refresh

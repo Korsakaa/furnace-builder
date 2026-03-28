@@ -53,7 +53,7 @@ export class Renderer3D {
     this.camera.position.set(20, 14, 28);
 
     // ── Renderer ───────────────────────────────────────────────────────
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(w, h);
     this.renderer.shadowMap.enabled = true;
@@ -181,6 +181,17 @@ export class Renderer3D {
     });
   }
 
+  exportPNG(): void {
+    this.renderer.render(this.scene, this.camera);
+    const url = this.renderer.domElement.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'furnace_3d.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   update(model: BrickModel, selectedRow: number, showMortar = false, maxRow = -1, maxCol = -1): void {
     const rowCount = maxRow < 0 ? model.rows.length : Math.min(maxRow, model.rows.length);
     const colLimit = maxCol < 0 ? model.cols : Math.min(maxCol, model.cols);
@@ -236,26 +247,44 @@ export class Renderer3D {
             else {
               const tmpl = model.doors.find(d => d.id === doorTemplateId(bt));
               if (tmpl) {
-                // полная высота: heightRows рядов без зазоров
                 const totalH = tmpl.heightRows * ROW_H + (tmpl.heightRows - 1) * JOINT;
                 const barD   = JOINT * 2.5;
                 const doorMat = new THREE.MeshStandardMaterial({
                   color: 0x446688, roughness: 0.4, metalness: 0.8,
                 });
-                const xOff = tmpl.offsetX === 'right'
-                  ? Math.max(0, bw - tmpl.cols * CELL) : 0;
-                const bz = z + bd / 2 - barD / 2;
 
-                for (let c = 0; c < tmpl.cols; c++) {
-                  if (!tmpl.shape[c]?.some(v => v)) continue;
-                  const bx = x + xOff + c * CELL;
-                  const bar = new THREE.Mesh(
-                    new THREE.BoxGeometry(CELL, totalH, barD), doorMat,
-                  );
-                  bar.position.set(bx + CELL / 2, y + totalH / 2, bz + barD / 2);
-                  bar.castShadow    = true;
-                  bar.receiveShadow = true;
-                  this.group.add(bar);
+                if (tmpl.brickBase === 'Тычок') {
+                  // bars along Z (depth), thin in X — offset shifts X position
+                  const xOff = tmpl.offsetX === 'left'   ? 0
+                             : tmpl.offsetX === 'right'  ? bw - barD
+                             : (bw - barD) / 2;
+                  for (let c = 0; c < tmpl.cols; c++) {
+                    if (!tmpl.shape[c]?.some(v => v)) continue;
+                    const bzPos = z + c * CELL;
+                    const bar = new THREE.Mesh(
+                      new THREE.BoxGeometry(barD, totalH, CELL), doorMat,
+                    );
+                    bar.position.set(x + xOff + barD / 2, y + totalH / 2, bzPos + CELL / 2);
+                    bar.castShadow    = true;
+                    bar.receiveShadow = true;
+                    this.group.add(bar);
+                  }
+                } else {
+                  // Ложок: bars along X, thin in Z — offset shifts Z position
+                  const bzOff = tmpl.offsetX === 'left'   ? 0
+                              : tmpl.offsetX === 'right'  ? bd - barD
+                              : (bd - barD) / 2;
+                  for (let c = 0; c < tmpl.cols; c++) {
+                    if (!tmpl.shape[c]?.some(v => v)) continue;
+                    const bx = x + c * CELL;
+                    const bar = new THREE.Mesh(
+                      new THREE.BoxGeometry(CELL, totalH, barD), doorMat,
+                    );
+                    bar.position.set(bx + CELL / 2, y + totalH / 2, z + bzOff + barD / 2);
+                    bar.castShadow    = true;
+                    bar.receiveShadow = true;
+                    this.group.add(bar);
+                  }
                 }
               }
             }
