@@ -12,6 +12,7 @@ export enum BrickType {
   Hole              = 'Hole',
   VerticalStretcher = 'VerticalStretcher',
   Grate             = 'Grate',
+  Slab              = 'Slab',
   // Chamfer (45° corner cut, half of shorter side)
   ChamferTL         = 'ChamferTL',   // Ложок, top-left  corner cut
   ChamferTR         = 'ChamferTR',   // Ложок, top-right
@@ -116,10 +117,18 @@ export function isBoxBrick(bt: string): boolean   { return bt.startsWith('box:')
 export function boxTemplateId(bt: string): string { return bt.slice(4); }
 
 // ── Model ────────────────────────────────────────────────────────────────────
+export interface RowGroup {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface BrickModel {
   rows: string[][][];     // [row][col][dep]  — BrickType, door:id, or box:id
   rowOffsets: boolean[];
   rowHidden:  boolean[];  // true = row hidden from 3D view
+  rowGroups:  RowGroup[];
+  rowGroupIds: (string | null)[];  // per-row group id, null = main (no group)
   cols: number;
   depths: number;
   doors: DoorTemplate[];
@@ -135,6 +144,8 @@ export function createModel(cols: number, depths: number): BrickModel {
     rows: [emptyRow(), emptyRow(), emptyRow()],
     rowOffsets: [false, false, false],
     rowHidden:  [false, false, false],
+    rowGroups:  [],
+    rowGroupIds: [null, null, null],
     cols,
     depths,
     doors: [],
@@ -150,6 +161,7 @@ export function addRow(m: BrickModel): void {
   m.rows.push(emptyRow());
   m.rowOffsets.push(false);
   m.rowHidden.push(false);
+  m.rowGroupIds.push(null);
 }
 
 export function setBrick(m: BrickModel, row: number, col: number, depth: number, bt: string): void {
@@ -190,6 +202,7 @@ export function brickCells(bt: string, doors?: DoorTemplate[], boxes?: BoxTempla
     case BrickType.Hole:              return [2, 2];
     case BrickType.VerticalStretcher: return [4, 2];
     case BrickType.Grate:             return [4, 2];
+    case BrickType.Slab:              return [4, 2];
     // Chamfer Ложок — same footprint as FullStretcher
     case BrickType.ChamferTL: case BrickType.ChamferTR:
     case BrickType.ChamferBR: case BrickType.ChamferBL: return [4, 2];
@@ -249,11 +262,14 @@ export function serializeModel(m: BrickModel): string {
 
 export function deserializeModel(json: string): BrickModel {
   const m = JSON.parse(json) as BrickModel;
-  if (!m.rowOffsets) m.rowOffsets = new Array(m.rows.length).fill(false);
+  if (!m.rowOffsets)  m.rowOffsets  = new Array(m.rows.length).fill(false);
   m.rowOffsets.length = m.rows.length;
-  if (!m.doors)     m.doors     = [];
-  if (!m.boxes)     m.boxes     = [];
-  if (!m.rowHidden) m.rowHidden = new Array(m.rows.length).fill(false);
+  if (!m.doors)      m.doors      = [];
+  if (!m.boxes)      m.boxes      = [];
+  if (!m.rowHidden)  m.rowHidden  = new Array(m.rows.length).fill(false);
   m.rowHidden.length = m.rows.length;
+  if (!m.rowGroups)   m.rowGroups   = [];
+  if (!m.rowGroupIds) m.rowGroupIds = new Array(m.rows.length).fill(null);
+  m.rowGroupIds.length = m.rows.length;
   return m;
 }

@@ -67,6 +67,7 @@ const ALL_BRICK_TYPES: string[] = [
   BrickType.Hole,
   BrickType.VerticalStretcher,
   BrickType.Grate,
+  BrickType.Slab,
 ];
 
 function allTypes(model: BrickModel): string[] {
@@ -141,6 +142,8 @@ function brickFill(bt: string, gray: boolean, model?: BrickModel): string {
       return "#5aab58";
     case BrickType.Grate:
       return "#3a3a3a";
+    case BrickType.Slab:
+      return "#1a1a1a";
     default:
       return "transparent";
   }
@@ -822,8 +825,8 @@ export class GridEditor {
     const labelY = curY + gh - 16;
     const labelH = 14;
 
-    const colStr  = `Ш: ${cols / 4}`;
-    const depStr  = `Г: ${depths / 2}`;
+    const colStr  = `X: ${cols / 4}`;
+    const depStr  = `Y: ${depths / 2}`;
     const twCol = ctx.measureText(colStr).width;
     const twDep = ctx.measureText(depStr).width;
     const gap = 6;
